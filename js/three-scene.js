@@ -1,5 +1,5 @@
 // js/three-scene.js
-// Semua animasi 3D: intro sinematik (runIntro) dan latar hero (startHero).
+// Objek 3D bersama dan latar hero (startHero). Intro ada di js/intro.js.
 import * as THREE from 'three';
 
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -69,7 +69,7 @@ export function makeProp(kind) {
   return g;
 }
 
-function starfield(n, spread) {
+export function starfield(n, spread) {
   const geo = new THREE.BufferGeometry();
   const p = new Float32Array(n * 3);
   for (let i = 0; i < p.length; i++) p[i] = (Math.random() - 0.5) * spread;
@@ -78,7 +78,7 @@ function starfield(n, spread) {
 }
 
 // Tekstur logo HEYGAMMER dari canvas (tanpa perlu memuat font 3D).
-function logoTexture() {
+export function logoTexture() {
   const c = document.createElement('canvas');
   c.width = 1024; c.height = 256;
   const x = c.getContext('2d');
@@ -90,111 +90,6 @@ function logoTexture() {
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
-}
-
-const ease = t => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
-
-/**
- * Intro sinematik ±7 detik:
- * portal terbuka → kamera mengorbit 360° → logo berputar keluar dari portal
- * → objek gaming mengorbit → kamera mendekat → selesai.
- * Mengembalikan fungsi stop() untuk tombol SKIP.
- */
-export function runIntro(canvas, onDone) {
-  if (reduce) {
-    const t = setTimeout(onDone, 300);
-    return () => clearTimeout(t);
-  }
-
-  const r = makeRenderer(canvas);
-  const scene = new THREE.Scene();
-  const cam = new THREE.PerspectiveCamera(60, 1, 0.1, 300);
-  const unfit = fitTo(r, cam, canvas.parentElement);
-
-  scene.add(starfield(mobile ? 700 : 1500, 200), new THREE.AmbientLight(0xffffff, 0.5));
-  const key = new THREE.PointLight(PURPLE, 40, 60);
-  key.position.set(0, 0, 6);
-  scene.add(key);
-
-  const portal = new THREE.Group();
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(4, 0.3, 16, 120), new THREE.MeshBasicMaterial({ color: PURPLE }));
-  const disc = new THREE.Mesh(new THREE.CircleGeometry(3.7, 64), new THREE.MeshBasicMaterial({
-    color: BLUE, transparent: true, opacity: 0.35, side: THREE.DoubleSide,
-    blending: THREE.AdditiveBlending, depthWrite: false,
-  }));
-  portal.add(ring, disc);
-  portal.scale.setScalar(0.001);
-  scene.add(portal);
-
-  const logo = new THREE.Mesh(new THREE.PlaneGeometry(8, 2), new THREE.MeshBasicMaterial({
-    map: logoTexture(), transparent: true, depthWrite: false,
-  }));
-  logo.visible = false;
-  scene.add(logo);
-
-  const props = ['controller', 'joystick', 'car', 'puzzle', 'trophy'].map((k, i) => {
-    const p = makeProp(k);
-    p.userData.a = (i / 5) * Math.PI * 2;
-    p.scale.setScalar(0.001);
-    scene.add(p);
-    return p;
-  });
-
-  const clock = new THREE.Clock();
-  const DUR = 7;
-  let raf = 0, finished = false;
-
-  const finish = () => {
-    if (finished) return;
-    finished = true;
-    cancelAnimationFrame(raf);
-    unfit();
-    r.dispose();
-    onDone();
-  };
-
-  const frame = () => {
-    const t = clock.getElapsedTime();
-
-    // 1. Portal terbuka (0.4–1.8 dtk) dan berdenyut
-    portal.scale.setScalar(Math.max(0.001, ease((t - 0.4) / 1.4)));
-    ring.rotation.z += 0.01;
-
-    // 2. Kamera mengorbit 360° (0–5 dtk), lalu mendekat ke logo (4.5–6.5 dtk)
-    const orbit = ease(t / 5) * Math.PI * 2;
-    const R = t < 4.5 ? 18 - ease((t - 3) / 2) * 4 : 14 - ease((t - 4.5) / 2) * 8;
-    cam.position.set(Math.sin(orbit) * R, 2 + Math.sin(t) * 0.5, Math.cos(orbit) * R);
-    cam.lookAt(0, 0, 0);
-
-    // 3. Logo muncul dari portal dan berputar 360° pada sumbu vertikal (2–4.5 dtk)
-    logo.visible = t > 2;
-    logo.scale.setScalar(Math.max(0.001, ease((t - 2) / 1.5)));
-    logo.rotation.y = ease((t - 2) / 2.5) * Math.PI * 2;
-
-    // 4. Objek gaming muncul dan mengorbit logo (2.5 dtk dst)
-    props.forEach((p, i) => {
-      p.scale.setScalar(Math.max(0.001, ease((t - 2.5 - i * 0.2) / 1)));
-      const a = p.userData.a + t * 0.6;
-      p.position.set(Math.cos(a) * 6.5, Math.sin(a * 2) * 1.2, Math.sin(a) * 6.5);
-      p.rotation.y += 0.02;
-      p.rotation.x = Math.sin(t + i) * 0.2;
-    });
-
-    key.intensity = 40 + Math.sin(t * 3) * 8;
-    r.render(scene, cam);
-
-    if (t >= DUR) return finish();
-    raf = requestAnimationFrame(frame);
-  };
-
-  raf = requestAnimationFrame(frame);
-  return () => {
-    if (finished) return;
-    finished = true;
-    cancelAnimationFrame(raf);
-    unfit();
-    r.dispose();
-  };
 }
 
 /**

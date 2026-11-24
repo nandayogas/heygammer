@@ -145,6 +145,7 @@ header{display:flex;gap:14px;align-items:center}
 #intro.hide{opacity:0;pointer-events:none}
 #introCanvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 #skipIntro{position:absolute;right:20px;bottom:20px;z-index:2;background:rgba(0,0,0,.5);border:1px solid #a855f7;border-radius:999px;padding:8px 16px}
+.intro-tag{position:absolute;left:0;right:0;bottom:14%;text-align:center;color:#fde68a;font:900 clamp(14px,2.4vw,22px)/1 'Segoe UI',system-ui,sans-serif;letter-spacing:6px;text-shadow:0 0 12px rgba(251,191,36,.8);opacity:0;pointer-events:none;z-index:2}
 .hero-3d{position:absolute;inset:0;z-index:0}
 .hero-3d canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 

@@ -8,7 +8,10 @@
 <link rel="stylesheet" href="css/styles.css">
 <!-- Three.js dimuat dari CDN. Versi dikunci agar stabil. -->
 <script type="importmap">
-{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
 </script>
 </head>
 <body>
@@ -17,6 +20,7 @@
 <!-- Intro 3D (dijalankan oleh js/three-scene.js) -->
 <div id="intro">
   <canvas id="introCanvas"></canvas>
+  <div class="intro-tag">PLAY. EXPLORE. DOMINATE.</div>
   <button id="skipIntro" class="ghost-btn">SKIP INTRO</button>
 </div>
 

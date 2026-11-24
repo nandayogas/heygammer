@@ -3,7 +3,8 @@
 // leaderboard (online/lokal), modal permainan, settings, dan kontrol intro.
 import { runGame } from './games.js';
 import { backend } from './firebase.js';
-import { startHero, runIntro } from './three-scene.js';
+import { startHero } from './three-scene.js';
+import { runIntro } from './intro.js';
 
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
