@@ -3,6 +3,7 @@
 export const GAMES = [
   // featured: tampil di beranda. Game tanpa featured hanya muncul lewat Kategori / Explore / pencarian.
   // embed: game HTML mandiri di games/*.html, dibuka lewat iframe.
+  { id: 'arena', name: 'Arena Brawler', game: 'arena', emoji: '🥊', cats: ['Fighting', 'Action', 'Arcade'], isNew: true, featured: true, embed: true, bg: 'linear-gradient(135deg,#4c1d95,#831843)' },
   { id: 'neonrush', name: 'Neon Rush', game: 'neonrush', emoji: '🏎️', cats: ['Racing', 'Action', 'Arcade'], isNew: true, featured: true, embed: true, bg: 'linear-gradient(135deg,#500724,#1e1b4b)' },
   { id: 'subway', name: 'Subway Runner 3D', game: 'subway', emoji: '🏃', cats: ['Platform', 'Action', 'Arcade'], isNew: true, featured: true, embed: true, bg: 'linear-gradient(135deg,#1e3a8a,#0f766e)' },
   { id: 'hillclimb', name: 'Hill Climb Adventure', game: 'hillclimb', emoji: '🚙', cats: ['Racing', 'Adventure', 'Action'], isNew: true, featured: true, embed: true, bg: 'linear-gradient(135deg,#7c2d12,#0f172a)' },

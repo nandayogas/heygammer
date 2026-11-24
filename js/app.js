@@ -7,6 +7,7 @@ import { startHero } from './three-scene.js';
 import { runIntro } from './intro.js';
 import { GAMES, CATS } from './data/catalog.js';
 import { thumb } from './data/thumbs.js';
+import { duck } from './music.js';
 
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
@@ -207,6 +208,7 @@ function openGame(id, daily = false) {
   const box = $('#gameBox');
   box.innerHTML = '';
   document.body.classList.toggle('embed-game', !!g.embed);
+  duck(true);
   document.body.classList.add('in-game'); // sembunyikan dashboard, game memenuhi layar
   window.scrollTo(0, 0);
   const ctl = {
@@ -226,6 +228,7 @@ function closeGame() {
   setPaused(false);
   $('#result').classList.remove('show');
   document.body.classList.remove('in-game', 'embed-game');
+  duck(false);
 }
 function closeModal(id) {
   if (id === 'gm') return closeGame();

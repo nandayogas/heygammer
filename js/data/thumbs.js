@@ -3,6 +3,7 @@
 // Animasi: run bob spin pulse sway slide fall rise none (lihat css/thumbs.css)
 // fx: lapisan latar bergerak — stars, road, grid, hills.
 const T = {
+  arena: [0, ['🥊', 'bob', 10, 34, 42, .8, 0], ['💥', 'pulse', 42, 16, 34, .8, .2], ['🛡️', 'bob', 70, 34, 38, .8, .4]],
   neonrush: ['road', ['🏎️', 'run', 0, 46, 42, 1.6, 0], ['🚙', 'run', 0, 58, 34, 2.3, .7], ['✨', 'pulse', 72, 14, 22, 1, 0]],
   subway: ['road', ['🏃', 'bob', 18, 40, 46, .5, 0], ['🚆', 'run', 0, 30, 44, 2.4, .4], ['🪙', 'spin', 62, 24, 22, 1.2, 0]],
   hillclimb: ['hills', ['🚙', 'sway', 34, 44, 48, 1.1, 0], ['⛰️', 'run', 0, 10, 36, 7, 0], ['🪙', 'spin', 74, 30, 22, 1.4, 0]],
