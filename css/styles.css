@@ -199,3 +199,42 @@ main,.content,.dash,.hero{min-width:0;max-width:100%}
   .guest{width:100%;justify-content:space-between}
   .search{min-width:0}
 }
+
+/* ===== Perbaikan mobile: menu bawah & hero ===== */
+@media (max-width: 900px) {
+  aside {
+    position: fixed;
+    left: 0; right: 0; bottom: 0; top: auto;
+    height: auto;
+    flex-direction: row;
+    padding: 6px 4px;
+    border-right: 0;
+    border-top: 1px solid rgba(168, 85, 247, .4);
+    z-index: 50;
+    overflow: visible;
+  }
+  nav {
+    flex-direction: row;
+    width: 100%;
+    gap: 4px;
+    margin-top: 0;
+  }
+  nav a {
+    flex-direction: column;
+    flex: 1;
+    gap: 2px;
+    padding: 6px 2px;
+    font-size: 10px;
+    text-align: center;
+    white-space: nowrap;
+    transform: none;
+  }
+  nav a:hover { transform: none; }
+  nav a .i { width: auto; font-size: 16px; }
+
+  main { padding-bottom: 90px; }
+
+  .hero .arrow { display: none; }
+  .dots { bottom: 10px; }
+  .slide { padding-bottom: 46px; }
+}
