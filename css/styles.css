@@ -149,6 +149,48 @@ header{display:flex;gap:14px;align-items:center}
 .hero-3d{position:absolute;inset:0;z-index:0}
 .hero-3d canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 
+/* ===== Modal lain: isi solid agar tidak tembus pandang ===== */
+.mbox.glass{background:linear-gradient(160deg,#1c0f3f,#0c0826)}
+.mh{flex-wrap:wrap}
+
+/* ===== Game Mode: layar penuh, dashboard disembunyikan ===== */
+body.in-game .app{display:none}
+#gm{position:fixed;inset:0;z-index:70;display:none;flex-direction:column;height:100vh;height:100dvh;background:radial-gradient(ellipse at 70% 0%,#3d0c85 0%,#14083f 40%,#05040f 85%);overflow:hidden}
+body.in-game #gm{display:flex}
+.gm-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid rgba(168,85,247,.35);background:rgba(8,4,22,.75)}
+.gm-top h2{flex:1;min-width:120px;font-size:18px;text-shadow:0 0 10px rgba(168,85,247,.8)}
+.gm-stats{display:flex;gap:8px}
+.chip{display:flex;align-items:center;gap:4px;padding:6px 12px;border-radius:999px;background:rgba(20,10,45,.8);border:1px solid rgba(34,211,238,.5);font-size:13px;color:var(--m)}
+.chip b{color:var(--g);font-size:15px;margin-left:2px}
+.gm-actions{display:flex;gap:8px}
+.gm-actions .ghost-btn{padding:8px 14px;font-size:13px}
+.gm-stage{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:14px;overflow:auto}
+.playfield{position:relative;width:100%;max-width:560px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.splash{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px;text-align:center;background:rgba(8,4,22,.88);border-radius:16px}
+.splash h3{font-size:clamp(22px,4vw,30px);text-shadow:0 0 14px var(--p)}
+.splash p{max-width:340px;font-size:14px;color:#e9e5ff}
+.pause{position:absolute;inset:0;z-index:6;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(5,4,15,.88)}
+.pause.show{display:flex}
+.pause h3{font-size:28px;text-shadow:0 0 14px var(--c)}
+.gm-stage .result{z-index:5}
+.info{font-size:14px}
+#sn{width:min(100%,56dvh);height:auto;aspect-ratio:1}
+.g2048{max-width:100%;width:min(300px,100%)}
+
+/* ===== Memory: kartu flip 3D ===== */
+.grid.mem{max-width:min(420px,100%);gap:10px}
+.card3d{position:relative;aspect-ratio:1;background:none;box-shadow:none;padding:0;border-radius:14px;perspective:700px}
+.card3d .flip{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.card3d.up .flip,.card3d.ok .flip{transform:rotateY(180deg)}
+.card3d .face{position:absolute;inset:0;border-radius:14px;display:grid;place-items:center;font-size:clamp(24px,7vw,40px);backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.card3d .back{background:linear-gradient(135deg,#4c1d95,#1e3a8a);box-shadow:0 0 14px rgba(168,85,247,.55);color:#e9d5ff;font-weight:900}
+.card3d .front{transform:rotateY(180deg);background:linear-gradient(135deg,#0e7490,#164e63);box-shadow:0 0 16px var(--c)}
+.card3d.ok .front{background:linear-gradient(135deg,#15803d,#0e7490);box-shadow:0 0 22px #22c55e}
+
+/* ===== Racing ===== */
+#rc{display:block;width:min(100%,calc(56dvh * .625));aspect-ratio:300/480;border-radius:14px;border:2px solid var(--p);background:#0b0618;box-shadow:0 0 22px rgba(168,85,247,.5);margin:auto}
+.race-pad button{min-width:130px}
+
 /* Perbaikan lebar layar HP */
 html,body{width:100%;overflow-x:hidden}
 main,.content,.dash,.hero{min-width:0;max-width:100%}

@@ -131,16 +131,26 @@
 </div>
 
 <!-- Modal permainan -->
-<div class="modal" id="gm">
-  <div class="mbox glass">
-    <div class="mh">
-      <h2 id="gTitle"></h2>
-      <div style="display:flex;gap:8px">
-        <button class="ghost-btn" id="restart">↻ Restart</button>
-        <button class="ghost-btn" data-close="gm">🏠 Dashboard</button>
-      </div>
+<section id="gm" aria-label="Game Mode">
+  <div class="gm-top">
+    <button class="ghost-btn" data-close="gm">← Dashboard</button>
+    <h2 id="gTitle"></h2>
+    <div class="gm-stats">
+      <span class="chip">Skor<b id="gmScore">0</b></span>
+      <span class="chip">Level<b id="gmLevel">1</b></span>
     </div>
-    <div id="gameBox"></div>
+    <div class="gm-actions">
+      <button class="ghost-btn" id="pauseBtn">❚❚ Pause</button>
+      <button class="ghost-btn" id="restart">↻ Restart</button>
+    </div>
+  </div>
+  <div class="gm-stage">
+    <div id="gameBox" class="playfield"></div>
+    <div class="pause" id="pause">
+      <h3>⏸ Jeda</h3>
+      <button class="neon-btn" id="resume">▶ Lanjut</button>
+      <button class="ghost-btn" data-close="gm">Kembali ke Dashboard</button>
+    </div>
     <div class="result" id="result">
       <h3>🏁 Permainan Selesai!</h3>
       <p>Skor: <b id="resScore"></b></p>
@@ -150,7 +160,7 @@
       </div>
     </div>
   </div>
-</div>
+</section>
 
 <!-- Modal settings -->
 <div class="modal" id="settings">

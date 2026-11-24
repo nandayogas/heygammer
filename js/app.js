@@ -24,7 +24,7 @@ document.body.classList.toggle('reduce', reduce);
 /* ---------- data ---------- */
 const GAMES = [
   { id: 'memory', name: 'Memory Challenge', game: 'memory', emoji: '🧠', rating: 4.9, players: '2.1M', cats: ['Puzzle', 'Adventure'], bg: 'linear-gradient(135deg,#4c1d95,#1e3a8a)' },
-  { id: 'racing', name: 'Racing Fever', game: 'reaction', emoji: '🏎️', rating: 4.8, players: '1.8M', cats: ['Racing', 'Action', 'Sports'], isNew: true, bg: 'linear-gradient(135deg,#7f1d1d,#1e1b4b)' },
+  { id: 'racing', name: 'Racing Fever', game: 'racing', emoji: '🏎️', rating: 4.8, players: '1.8M', cats: ['Racing', 'Action', 'Sports'], isNew: true, bg: 'linear-gradient(135deg,#7f1d1d,#1e1b4b)' },
   { id: 'ttt', name: 'Tic Tac Toe', game: 'ttt', emoji: '❌', rating: 4.7, players: '1.5M', cats: ['Strategy', 'Simulation'], bg: 'linear-gradient(135deg,#1e1b4b,#0e7490)' },
   { id: 'snake', name: 'Snake Master', game: 'snake', emoji: '🐍', rating: 4.8, players: '1.2M', cats: ['Arcade', 'Action'], bg: 'linear-gradient(135deg,#14532d,#4c1d95)' },
   { id: '2048', name: '2048 Challenge', game: '2048', emoji: '🔢', rating: 4.8, players: '1.9M', cats: ['Puzzle', 'Strategy'], bg: 'linear-gradient(135deg,#78350f,#4c1d95)' },
@@ -46,7 +46,7 @@ const SAMPLE_BOTS = [
 let view = { f: 'all', cat: null, q: '' };
 let favs = store.get('fav', []);
 let slide = 0, heroTimer = null;
-let current = null, curDaily = false, cleanup = null, stopIntro = null;
+let current = null, curDaily = false, cleanup = null, stopIntro = null, paused = false;
 
 const gameName = id => (GAMES.find(g => g.id === id) || {}).name || id;
 const totalBest = () => Object.values(store.get('best', {})).reduce((a, b) => a + b, 0);
@@ -188,16 +188,36 @@ function openGame(id, daily = false) {
   const g = GAMES.find(x => x.id === id);
   if (!g) return;
   current = id; curDaily = daily;
-  $('#gTitle').textContent = g.name;
-  $('#result').classList.remove('show');
   if (cleanup) cleanup();
+  $('#gTitle').textContent = g.name;
+  $('#gmScore').textContent = 0;
+  $('#gmLevel').textContent = 1;
+  $('#result').classList.remove('show');
+  setPaused(false);
   const box = $('#gameBox');
   box.innerHTML = '';
-  cleanup = runGame(g.game, box, score => finish(id, score, daily));
-  $('#gm').classList.add('show');
+  document.body.classList.add('in-game'); // sembunyikan dashboard, game memenuhi layar
+  window.scrollTo(0, 0);
+  const ctl = {
+    score: n => { $('#gmScore').textContent = n; },
+    level: v => { $('#gmLevel').textContent = v; },
+    paused: () => paused,
+  };
+  cleanup = runGame(g.game, box, score => finish(id, score, daily), ctl);
+}
+function setPaused(on) {
+  paused = on;
+  $('#pause').classList.toggle('show', on);
+  $('#pauseBtn').textContent = on ? '▶ Lanjut' : '❚❚ Pause';
+}
+function closeGame() {
+  if (cleanup) { cleanup(); cleanup = null; }
+  setPaused(false);
+  $('#result').classList.remove('show');
+  document.body.classList.remove('in-game');
 }
 function closeModal(id) {
-  if (id === 'gm' && cleanup) { cleanup(); cleanup = null; }
+  if (id === 'gm') return closeGame();
   $('#' + id).classList.remove('show');
 }
 
@@ -211,6 +231,8 @@ async function finish(id, score, daily) {
   if (daily) store.set('daily', today());
 
   $('#resScore').textContent = score;
+  $('#gmScore').textContent = score;
+  setPaused(false);
   $('#result').classList.add('show');
   renderDaily();
   renderLevel();
@@ -295,6 +317,8 @@ document.addEventListener('click', e => {
     case 'skipIntro': return endIntro();
     case 'again': return openGame(current, curDaily);
     case 'restart': return openGame(current, curDaily);
+    case 'pauseBtn': return setPaused(!paused);
+    case 'resume': return setPaused(false);
     case 'reset':
       store.set('fav', []); store.set('history', []); store.set('best', {}); store.set('daily', ''); store.set('last', '');
       favs = [];
