@@ -1,310 +1,153 @@
-// js/intro.js
-// Intro sinematik 3D (±7 detik):
-// portal neon terbuka → logo 3D keluar dari portal → objek gaming mengorbit
-// → kamera mendorong masuk → ledakan partikel → tagline → selesai.
-// Mengembalikan fungsi stop() untuk tombol SKIP.
-import * as THREE from 'three';
-import { FontLoader } from 'three/addons/loaders/FontLoader.js';
-import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
-import { makeProp, starfield, logoTexture } from './three-scene.js';
-
-const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const mobile = innerWidth < 768;
-const PURPLE = 0xa855f7, CYAN = 0x22d3ee, GOLD = 0xfbbf24, BLUE = 0x3b82f6, PINK = 0xf472b6;
-const FONT_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/fonts/helvetiker_bold.typeface.json';
-const DUR = 7.2;     // total durasi (detik)
-const BURST = 5.4;   // saat ledakan partikel
-
-const clamp01 = t => Math.min(1, Math.max(0, t));
-const ease = t => { t = clamp01(t); return t * t * (3 - 2 * t); };
-const easeOutBack = t => {
-  t = clamp01(t);
-  const c1 = 1.70158, c3 = c1 + 1;
-  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
-};
-
-function makeRenderer(canvas) {
-  const r = new THREE.WebGLRenderer({ canvas, antialias: !mobile, alpha: true });
-  r.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.5 : 2));
-  r.toneMapping = THREE.ACESFilmicToneMapping;
-  r.toneMappingExposure = 1.15;
-  return r;
-}
-
-// Menyesuaikan ukuran canvas dengan kontainer. Di layar tegak, FOV dilebarkan
-// supaya logo tidak terpotong.
-function fit(r, cam, el) {
-  const resize = () => {
-    const w = el.clientWidth || innerWidth, h = el.clientHeight || innerHeight;
-    r.setSize(w, h, false);
-    cam.aspect = w / h;
-    cam.fov = w < h ? 75 : 55;
-    cam.updateProjectionMatrix();
-  };
-  resize();
-  addEventListener('resize', resize);
-  return () => removeEventListener('resize', resize);
-}
-
-// Sprite cahaya lembut (additive). Tekstur dipakai bersama antar-pemutaran.
-let glowTex = null;
-function glowSprite(color, size, opacity = 1) {
-  if (!glowTex) {
-    const c = document.createElement('canvas');
-    c.width = c.height = 128;
-    const x = c.getContext('2d');
-    const g = x.createRadialGradient(64, 64, 0, 64, 64, 64);
-    g.addColorStop(0, 'rgba(255,255,255,1)');
-    g.addColorStop(0.25, 'rgba(255,255,255,0.45)');
-    g.addColorStop(1, 'rgba(255,255,255,0)');
-    x.fillStyle = g;
-    x.fillRect(0, 0, 128, 128);
-    glowTex = new THREE.CanvasTexture(c);
-    glowTex.colorSpace = THREE.SRGBColorSpace;
-  }
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: glowTex, color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false,
-  }));
-  s.scale.setScalar(size);
-  return s;
-}
-
-function neonRing(radius, tube, color, opacity) {
-  return new THREE.Mesh(
-    new THREE.TorusGeometry(radius, tube, 16, 160),
-    new THREE.MeshBasicMaterial({ color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false })
-  );
-}
-
-function makeRobot() {
-  const g = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({ color: 0x67e8f9, emissive: 0x0e7490, emissiveIntensity: 0.6, metalness: 0.5, roughness: 0.3 });
-  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xf472b6 });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.4, 1), mat);
-  const head = new THREE.Mesh(new THREE.BoxGeometry(1, 0.8, 0.9), mat);
-  head.position.y = 1.1;
-  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 8), eyeMat);
-  eyeL.position.set(-0.25, 1.15, 0.46);
-  const eyeR = eyeL.clone();
-  eyeR.position.x = 0.25;
-  const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.4, 6), mat);
-  antenna.position.y = 1.7;
-  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 8), eyeMat);
-  tip.position.y = 1.92;
-  g.add(body, head, eyeL, eyeR, antenna, tip);
-  return g;
-}
+// js/intro.js — intro motion design: warp stars, synthwave grid + sun, kinetic title (glitch, shockwave),
+// orbit ikon game, loading bar, lalu iris-wipe ke dashboard. Canvas 2D + CSS (tanpa Three.js).
+// Dipanggil app.js: runIntro(canvas, onDone) → mengembalikan fungsi stop.
+const WORD = 'HEYGAMMER';
+const ICONS = ['🏎️', '🚀', '🧟', '⚽', '🥊', '🧱', '🏀', '👾'];
+const T = { letters: .5, impact: 1.5, tag: 2.3, icons: 3.4, load: 4.2, loadEnd: 5.8, wipe: 6.1, end: 6.9 };
+const SHAKES = [1.5, 2.3, 2.75, 3.2];
+const RINGS = [{ t: 1.5, c: '#67e8f9' }, { t: 3.2, c: '#f0abfc' }];
+const FLASH = [{ t: 1.5, a: .85 }, { t: 3.2, a: .5 }];
+const ease = p => 1 - Math.pow(1 - Math.min(1, Math.max(0, p)), 3);
+const TAU = Math.PI * 2;
 
 export function runIntro(canvas, onDone) {
-  const tag = canvas.parentElement.querySelector('.intro-tag');
+  const root = canvas.parentElement;
+  const $ = s => root.querySelector(s);
+  const title = $('#inTitle'), bar = $('#inBar'), pct = $('#inPct');
+  root.classList.remove('go', 'glitch', 'tag', 'load', 'wipe', 'shake', 'static');
+  title.innerHTML = [...WORD].map((c, i) => `<span class="${i > 2 ? 'g' : ''}" style="--i:${i}">${c}</span>`).join('');
+  bar.style.width = '0'; pct.textContent = '0%';
 
-  // Mode reduced motion: langsung selesai.
-  if (reduce) {
-    if (tag) { tag.style.transition = 'opacity .6s'; tag.style.opacity = '1'; }
-    const t = setTimeout(onDone, 1800);
-    return () => { clearTimeout(t); if (tag) tag.style.opacity = '0'; };
+  if (document.body.classList.contains('reduce')) { // reduced motion: statis 1,6 detik
+    root.classList.add('go', 'tag', 'load', 'static');
+    bar.style.width = '100%'; pct.textContent = 'READY';
+    const id = setTimeout(onDone, 1600);
+    return () => clearTimeout(id);
   }
 
-  // Tanpa WebGL, lewati intro dan jangan biarkan overlay hitam menutupi situs.
-  let r;
-  try {
-    r = makeRenderer(canvas);
-  } catch (err) {
-    console.warn('Intro 3D tidak bisa dijalankan:', err);
-    const t = setTimeout(onDone, 0);
-    return () => clearTimeout(t);
+  const ctx = canvas.getContext('2d');
+  const stars = Array.from({ length: 150 }, () => ({ a: Math.random() * TAU, r: Math.random() * .8 + .02, s: .5 + Math.random() }));
+  const fired = new Set();
+  let W = 0, H = 0, raf = 0, t0 = 0, last = 0, gridOff = 0;
+
+  function resize() {
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    W = innerWidth; H = innerHeight;
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
+  addEventListener('resize', resize);
+  resize();
 
-  const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x05040f, 0.025);
-  const cam = new THREE.PerspectiveCamera(55, 1, 0.1, 300);
-  const unfit = fit(r, cam, canvas.parentElement);
+  function draw(t, dt) {
+    const hor = H * .6, cx = W / 2, cy = H * .42, maxR = Math.hypot(W, H) / 2;
+    let g = ctx.createLinearGradient(0, 0, 0, hor);
+    g.addColorStop(0, '#04020d'); g.addColorStop(1, '#2a0a52');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, hor);
 
-  let raf = 0, finished = false;
+    // bintang warp: cepat sampai impact, lalu melambat
+    const warp = t < T.impact ? 2.4 : 2.4 - 1.9 * ease((t - T.impact) / 1.2);
+    ctx.lineCap = 'round';
+    for (const s of stars) {
+      s.r += warp * s.s * (.15 + s.r) * dt;
+      if (s.r > 1) { s.r = .02; s.a = Math.random() * TAU; }
+      const tail = Math.max(0, s.r - warp * .04 * s.s * (.15 + s.r)), c = Math.cos(s.a), n = Math.sin(s.a);
+      const y1 = H * .4 + n * maxR * s.r;
+      if (y1 > hor) continue;
+      ctx.strokeStyle = `rgba(200,220,255,${Math.min(1, s.r * 1.6) * .9})`;
+      ctx.lineWidth = .6 + s.r * 1.8;
+      ctx.beginPath(); ctx.moveTo(cx + c * maxR * tail, H * .4 + n * maxR * tail); ctx.lineTo(cx + c * maxR * s.r, y1); ctx.stroke();
+    }
 
-  /* ---------- cahaya & latar ---------- */
-  scene.add(starfield(mobile ? 700 : 1500, 200), new THREE.AmbientLight(0xffffff, 0.35));
-  const lights = [
-    new THREE.PointLight(PURPLE, 60, 60),
-    new THREE.PointLight(CYAN, 40, 60),
-    new THREE.PointLight(GOLD, 30, 60),
-  ];
-  lights[0].position.set(0, 0, 8);
-  lights[1].position.set(-8, 4, 4);
-  lights[2].position.set(8, -4, 4);
-  scene.add(...lights);
+    // matahari synthwave
+    if (t > .4) {
+      const r = Math.min(W, H) * .2 * ease((t - .4) / 1.1), sy = hor - r * .55;
+      ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, hor); ctx.clip();
+      g = ctx.createLinearGradient(0, sy - r, 0, hor);
+      g.addColorStop(0, '#fde047'); g.addColorStop(.55, '#fb7185'); g.addColorStop(1, '#c026d3');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, sy, r, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#2a0a52';
+      for (let k = 1; k <= 4; k++) ctx.fillRect(cx - r, sy + k * r * .12, r * 2, 1 + k * r * .012);
+      ctx.restore();
+    }
+    g = ctx.createLinearGradient(0, hor - 40, 0, hor + 10);
+    g.addColorStop(0, 'rgba(244,114,182,0)'); g.addColorStop(.8, 'rgba(244,114,182,.5)'); g.addColorStop(1, 'rgba(244,114,182,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, hor - 40, W, 50);
 
-  /* ---------- portal ---------- */
-  const portal = new THREE.Group();
-  const rings = [neonRing(4.2, 0.12, PURPLE, 0.9), neonRing(4.9, 0.05, CYAN, 0.7), neonRing(5.6, 0.03, BLUE, 0.5)];
-  const disc = new THREE.Mesh(
-    new THREE.CircleGeometry(4, 64),
-    new THREE.MeshBasicMaterial({ color: 0x1e1b4b, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false })
-  );
-  disc.position.z = -0.05;
-  const halo = glowSprite(PURPLE, 18, 0.6);
-  portal.add(disc, ...rings, halo);
-  portal.position.z = -1;
-  scene.add(portal);
+    // lantai grid perspektif
+    g = ctx.createLinearGradient(0, hor, 0, H);
+    g.addColorStop(0, '#12022b'); g.addColorStop(1, '#05010f');
+    ctx.fillStyle = g; ctx.fillRect(0, hor, W, H - hor);
+    const a = Math.min(1, t / .6);
+    gridOff = (gridOff + (t < T.impact ? 1.6 : .5) * dt) % 1;
+    for (let i = 0; i < 14; i++) {
+      const z = (i + gridOff) / 14, y = hor + (H - hor) * z * z;
+      ctx.strokeStyle = `rgba(217,70,239,${a * (.15 + z * .85)})`; ctx.lineWidth = 1 + z * 2;
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+    ctx.strokeStyle = `rgba(34,211,238,${a * .45})`; ctx.lineWidth = 1.2;
+    for (let k = -14; k <= 14; k++) {
+      ctx.beginPath(); ctx.moveTo(cx + k * W * .012, hor); ctx.lineTo(cx + k * W * .14, H); ctx.stroke();
+    }
 
-  /* ---------- logo ---------- */
-  // Mulai dengan logo datar (tekstur canvas), lalu diganti logo 3D begitu font selesai dimuat.
-  const logo = new THREE.Group();
-  logo.position.y = -4;
-  logo.visible = false;
-  const fallback = new THREE.Mesh(
-    new THREE.PlaneGeometry(8, 2),
-    new THREE.MeshBasicMaterial({ map: logoTexture(), transparent: true, depthWrite: false })
-  );
-  const logoGlow = glowSprite(PURPLE, 15, 0.45);
-  logoGlow.position.z = -1.2;
-  logo.add(fallback, logoGlow);
-  scene.add(logo);
+    // gelombang kejut
+    for (const r of RINGS) {
+      const p = (t - r.t) / 1.1;
+      if (p < 0 || p > 1) continue;
+      ctx.globalAlpha = 1 - p; ctx.strokeStyle = r.c; ctx.lineWidth = 2 + 8 * (1 - p);
+      ctx.beginPath(); ctx.arc(cx, cy, ease(p) * maxR * 1.1, 0, TAU); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
 
-  let logoMat = null;
-  new FontLoader().load(
-    FONT_URL,
-    font => {
-      if (finished) return;
-      const geo = new TextGeometry('HEYGAMMER', {
-        font, size: 1, depth: 0.45, curveSegments: 8,
-        bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.04, bevelSegments: 4,
-      });
-      geo.center();
-      geo.computeBoundingBox();
-      const width = geo.boundingBox.max.x - geo.boundingBox.min.x;
-      logoMat = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff, metalness: 0.4, roughness: 0.2,
-        clearcoat: 1, clearcoatRoughness: 0.1,
-        emissive: PURPLE, emissiveIntensity: 0.25,
-      });
-      const mesh = new THREE.Mesh(geo, logoMat);
-      mesh.scale.setScalar(8 / width);
-      logo.remove(fallback);
-      fallback.geometry.dispose();
-      fallback.material.map.dispose();
-      fallback.material.dispose();
-      logo.add(mesh);
-    },
-    undefined,
-    err => console.warn('Font intro gagal dimuat, memakai logo datar.', err)
-  );
-
-  /* ---------- objek gaming mengorbit ---------- */
-  const glowColors = [CYAN, PINK, GOLD, PURPLE, BLUE, GOLD];
-  const props = ['controller', 'joystick', 'car', 'robot', 'puzzle', 'trophy'].map((k, i) => {
-    const holder = new THREE.Group();
-    holder.add(k === 'robot' ? makeRobot() : makeProp(k), glowSprite(glowColors[i], 3.2, 0.5));
-    holder.userData.a = (i / 6) * Math.PI * 2;
-    holder.scale.setScalar(0.001);
-    scene.add(holder);
-    return holder;
-  });
-
-  /* ---------- ledakan partikel ---------- */
-  const N = mobile ? 180 : 360;
-  const pPos = new Float32Array(N * 3);
-  const pVel = new Float32Array(N * 3);
-  for (let i = 0; i < N; i++) {
-    const th = Math.random() * Math.PI * 2;
-    const ph = Math.acos(2 * Math.random() - 1);
-    const s = 2 + Math.random() * 6;
-    pVel[i * 3] = Math.sin(ph) * Math.cos(th) * s;
-    pVel[i * 3 + 1] = Math.sin(ph) * Math.sin(th) * s;
-    pVel[i * 3 + 2] = Math.cos(ph) * s;
-  }
-  const pGeo = new THREE.BufferGeometry();
-  const pAttr = new THREE.BufferAttribute(pPos, 3);
-  pGeo.setAttribute('position', pAttr);
-  const burst = new THREE.Points(pGeo, new THREE.PointsMaterial({
-    color: CYAN, size: 0.22, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending,
-  }));
-  scene.add(burst);
-
-  /* ---------- loop ---------- */
-  const clock = new THREE.Clock();
-
-  const dispose = () => {
-    if (finished) return;
-    finished = true;
-    cancelAnimationFrame(raf);
-    unfit();
-    scene.traverse(o => {
-      if (o.geometry) o.geometry.dispose();
-      if (o.material) {
-        (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => {
-          if (m.map && m.map !== glowTex) m.map.dispose();
-          m.dispose();
-        });
+    // ikon game mengorbit judul
+    if (t > T.icons) {
+      const base = Math.max(26, Math.min(54, W * .06)), rx = Math.min(W * .42, 520), ry = H * .2;
+      const items = ICONS.map((e, i) => { const ang = i / ICONS.length * TAU + t * .9; return { e, i, ang, d: Math.sin(ang) }; }).sort((p, q) => p.d - q.d);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      for (const o of items) {
+        const p = ease((t - T.icons - o.i * .08) / .5);
+        if (p <= 0) continue;
+        const depth = (o.d + 1) / 2;
+        ctx.globalAlpha = (.45 + .55 * depth) * p;
+        ctx.font = `${Math.max(1, base * (.7 + .3 * depth) * p)}px serif`;
+        ctx.fillText(o.e, cx + Math.cos(o.ang) * rx, cy + o.d * ry);
       }
-    });
-    r.dispose();
-    r.forceContextLoss(); // lepas context WebGL supaya tidak menumpuk saat Replay
-    if (tag) tag.style.opacity = '0';
-  };
-
-  const frame = () => {
-    const t = clock.getElapsedTime();
-
-    // 1. Portal membuka dengan efek memantul dan berputar pelan
-    portal.scale.setScalar(Math.max(0.001, easeOutBack(t / 1.2)));
-    rings.forEach((m, i) => {
-      m.rotation.x = Math.sin(t * 0.5 + i) * 0.5;
-      m.rotation.y = t * (0.4 + i * 0.25);
-    });
-    halo.material.opacity = 0.55 + Math.sin(t * 2) * 0.1;
-
-    // 2. Logo naik keluar dari portal lalu berputar sampai pas menghadap kamera
-    logo.visible = t > 1.2;
-    const rise = easeOutBack((t - 1.2) / 1.2);
-    logo.position.y = THREE.MathUtils.lerp(-4, 0, rise);
-    logo.scale.setScalar(Math.max(0.001, rise));
-    logo.rotation.y = -(1 - ease((t - 1.2) / 1.8)) * Math.PI * 2;
-    logoGlow.material.opacity = 0.4 + Math.sin(t * 2.2) * 0.08;
-    if (logoMat) {
-      logoMat.emissiveIntensity = 0.25 + Math.sin(t * 3) * 0.08 + (t > BURST ? 0.3 * (1 - clamp01((t - BURST) / 1.2)) : 0);
+      ctx.globalAlpha = 1;
     }
 
-    // 3. Objek gaming muncul satu per satu dan mengorbit logo
-    props.forEach((h, i) => {
-      h.scale.setScalar(Math.max(0.001, easeOutBack((t - 2.6 - i * 0.15) / 0.9)));
-      const a = h.userData.a + t * 0.5;
-      h.position.set(Math.cos(a) * 6.2, Math.sin(a * 2) * 1.1, Math.sin(a) * 6.2);
-      h.rotation.y = t * 0.8 + i;
-    });
-
-    // 4. Kamera mengorbit ±290°, lalu mendorong masuk ke logo
-    const orbit = ease(t / 5.2) * Math.PI * 2;
-    const dist = t < 5.2 ? 17 - ease((t - 2) / 3) * 3 : 14 - ease((t - 5.2) / 1.2) * 5;
-    cam.position.set(Math.sin(orbit) * dist, 1.8 + Math.sin(t * 0.7) * 0.4, Math.cos(orbit) * dist);
-    cam.lookAt(0, 0, 0);
-
-    // 5. Ledakan partikel dari logo
-    if (t >= BURST) {
-      const k = clamp01((t - BURST) / 1.6);
-      for (let i = 0; i < N * 3; i++) pPos[i] = pVel[i] * k;
-      pAttr.needsUpdate = true;
-      burst.material.opacity = 1 - k;
+    // kilatan layar
+    for (const f of FLASH) {
+      const p = (t - f.t) / .4;
+      if (p < 0 || p >= 1) continue;
+      ctx.fillStyle = `rgba(255,255,255,${f.a * (1 - p)})`; ctx.fillRect(0, 0, W, H);
     }
+  }
 
-    // 6. Tagline muncul lalu hilang
-    if (tag) tag.style.opacity = String(ease((t - 3.4) / 0.7) * (1 - ease((t - 6.2) / 0.6)));
-
-    // 7. Portal membesar hingga menutupi layar, lalu berubah menjadi dashboard
-    const open = t > DUR - 1.1 ? ease((t - (DUR - 1.1)) / 1.1) : 0;
-    if (open > 0) portal.scale.setScalar(1 + open * 14);
-
-    lights[0].intensity = 60 + Math.sin(t * 3) * 10;
-    r.render(scene, cam);
-
-    if (t >= DUR) {
-      dispose();
-      onDone();
-      return;
+  function steps(t) {
+    if (t >= T.letters) root.classList.add('go');
+    if (t >= T.impact && t < T.impact + .6) root.classList.add('glitch');
+    else if (t >= T.impact + .6) root.classList.remove('glitch');
+    if (t >= T.tag) root.classList.add('tag');
+    if (t >= T.load) {
+      root.classList.add('load');
+      const p = Math.min(1, (t - T.load) / (T.loadEnd - T.load)), v = Math.floor(p * p * (3 - 2 * p) * 100);
+      bar.style.width = v + '%';
+      pct.textContent = v >= 100 ? 'READY' : `LOADING UNIVERSE ${v}%`;
     }
+    for (const s of SHAKES) if (t >= s && !fired.has(s)) {
+      fired.add(s); root.classList.remove('shake'); void root.offsetWidth; root.classList.add('shake');
+    }
+    if (t >= T.wipe) root.classList.add('wipe');
+  }
+
+  function frame(now) {
+    if (!t0) { t0 = now; last = now; }
+    const t = (now - t0) / 1000, dt = Math.min(.05, (now - last) / 1000);
+    last = now;
+    draw(t, dt); steps(t);
+    if (t >= T.end) { raf = 0; onDone(); return; }
     raf = requestAnimationFrame(frame);
-  };
-
+  }
   raf = requestAnimationFrame(frame);
-  return dispose;
+  return () => { cancelAnimationFrame(raf); removeEventListener('resize', resize); };
 }

@@ -370,5 +370,4 @@ setInterval(tickCountdown, 1000);
 restartHeroTimer();
 startHero($('#hero3d'));
 
-if (store.get('introSeen', false)) $('#intro').style.display = 'none';
-else playIntro();
+playIntro(); // intro diputar setiap halaman dibuka / di-refresh
