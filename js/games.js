@@ -3,6 +3,7 @@ import { RUNNERS } from './games/shared.js';
 import './games/classic.js';
 import './games/arcade.js';
 import './games/more.js';
+import './games/embed.js';
 
 /** Jalankan game berdasarkan key. Mengembalikan fungsi cleanup (atau null). */
 export function runGame(key, box, done, ctl) {

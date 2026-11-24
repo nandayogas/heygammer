@@ -6,6 +6,7 @@ import { backend } from './firebase.js';
 import { startHero } from './three-scene.js';
 import { runIntro } from './intro.js';
 import { GAMES, CATS } from './data/catalog.js';
+import { thumb } from './data/thumbs.js';
 
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
@@ -37,7 +38,7 @@ const SAMPLE_BOTS = [
 ];
 
 /* ---------- state ---------- */
-let view = { f: 'all', cat: null, q: '' };
+let view = { f: 'all', cat: null, q: '', all: false }; // all=false: beranda hanya game featured
 let favs = store.get('fav', []);
 let slide = 0, heroTimer = null;
 let current = null, curDaily = false, cleanup = null, stopIntro = null, paused = false;
@@ -86,7 +87,7 @@ function renderCats() {
 function gameCard(g) {
   const fav = favs.includes(g.id);
   return `<article class="gcard glass">
-    <span class="thumb" style="background:${g.bg}">${g.emoji}</span>
+    <span class="thumb th" style="background:${g.bg}">${thumb(g)}</span>
     ${g.isNew ? '<i class="tag">NEW</i>' : ''}
     <button class="fav ${fav ? 'on' : ''}" data-fav="${g.id}" aria-label="Favorit">${fav ? '♥' : '♡'}</button>
     <h3>${esc(g.name)}</h3>
@@ -97,6 +98,7 @@ function gameCard(g) {
 
 function renderGames() {
   let list = GAMES.filter(g =>
+    (view.all || view.cat || view.q || view.f === 'fav' || g.featured) &&
     (!view.cat || g.cats.includes(view.cat)) &&
     (!view.q || g.name.toLowerCase().includes(view.q) || g.cats.some(c => c.toLowerCase().includes(view.q))));
   if (view.f === 'popular') list = [...list].sort((a, b) => (parseFloat(b.players) || 0) - (parseFloat(a.players) || 0));
@@ -108,7 +110,7 @@ function renderGames() {
     ? list.map(gameCard).join('')
     : `<p class="meta">${view.f === 'fav' ? 'Belum ada favorit. Tekan ♡ pada game untuk menambahkannya.' : view.cat ? `Kategori ${esc(view.cat)} belum punya game. Segera hadir!` : 'Tidak ada game yang cocok. Coba kata lain atau kategori lain.'}</p>`;
   $('#gHint').textContent = view.f === 'fav' ? 'Favorit kamu' : view.cat ? `Kategori: ${view.cat}`
-    : view.q ? `Hasil untuk "${view.q}"` : 'Most popular games right now';
+    : view.q ? `Hasil untuk "${view.q}"` : view.all ? 'Semua game' : 'Game pilihan — game lainnya ada di Kategori';
   $$('#pills .pill').forEach(p => p.classList.toggle('on', p.dataset.f === view.f));
   $$('#catList .cat').forEach(c => c.classList.toggle('on', c.dataset.cat === view.cat));
 }
@@ -121,7 +123,7 @@ function renderRecent() {
 }
 
 /* ---------- daily challenge ---------- */
-const dailyGame = () => GAMES[Math.floor(Date.now() / 864e5) % GAMES.length];
+const dailyGame = () => { const pool = GAMES.filter(g => !g.embed); return pool[Math.floor(Date.now() / 864e5) % pool.length]; }; // hanya game yang melapor skor
 function renderDaily() {
   const dg = dailyGame();
   const done = store.get('daily', '') === today();
@@ -204,6 +206,7 @@ function openGame(id, daily = false) {
   setPaused(false);
   const box = $('#gameBox');
   box.innerHTML = '';
+  document.body.classList.toggle('embed-game', !!g.embed);
   document.body.classList.add('in-game'); // sembunyikan dashboard, game memenuhi layar
   window.scrollTo(0, 0);
   const ctl = {
@@ -222,7 +225,7 @@ function closeGame() {
   if (cleanup) { cleanup(); cleanup = null; }
   setPaused(false);
   $('#result').classList.remove('show');
-  document.body.classList.remove('in-game');
+  document.body.classList.remove('in-game', 'embed-game');
 }
 function closeModal(id) {
   if (id === 'gm') return closeGame();
@@ -268,7 +271,7 @@ function navTo(name, el) {
   }
   switch (name) {
     case 'home': return scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
-    case 'explore': view = { f: 'all', cat: null, q: '' }; $('#q').value = ''; renderGames(); return jump('#games');
+    case 'explore': view = { f: 'all', cat: null, q: '', all: true }; $('#q').value = ''; renderGames(); return jump('#games');
     case 'cats': return jump('#cats');
     case 'trending': case 'popular': view.f = 'popular'; renderGames(); return jump('#games');
     case 'fav': view.f = 'fav'; view.cat = null; renderGames(); return jump('#games');
@@ -311,7 +314,7 @@ document.addEventListener('click', e => {
   if ((el = hit('[data-dot]'))) { goSlide(+el.dataset.dot); return restartHeroTimer(); }
   if (hit('[data-prev]')) { goSlide(slide - 1); return restartHeroTimer(); }
   if (hit('[data-next]')) { goSlide(slide + 1); return restartHeroTimer(); }
-  if (hit('[data-hplay]')) return openGame(store.get('last', 'memory'));
+  if (hit('[data-hplay]')) return openGame(store.get('last', '') || 'neonrush');
 
   switch (e.target.id) {
     case 'qBtn': view.q = $('#q').value.trim().toLowerCase(); renderGames(); return jump('#games');
@@ -344,6 +347,12 @@ document.addEventListener('click', e => {
 $('#reduceToggle').addEventListener('change', e => { store.set('reduce', e.target.checked); location.reload(); });
 $('#q').addEventListener('keydown', e => { if (e.key === 'Enter') { view.q = e.target.value.trim().toLowerCase(); renderGames(); jump('#games'); } });
 $('#q').addEventListener('input', e => { view.q = e.target.value.trim().toLowerCase(); renderGames(); });
+
+/* ---------- skor dari game embed (iframe satu origin) ---------- */
+addEventListener('message', e => {
+  if (e.origin !== location.origin || !current || !e.data || typeof e.data.hgScore !== 'number') return;
+  finish(current, Math.max(0, Math.floor(e.data.hgScore)), curDaily);
+});
 
 /* ---------- boot ---------- */
 renderHero();

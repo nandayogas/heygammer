@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Subway Surfers 3D - HTML5 Single File</title>
+    <!-- Menggunakan Three.js untuk rendering 3D dan Tone.js untuk efek suara -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #1a1a2e;
+            font-family: 'Nunito', sans-serif;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* UI Overlay */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+        }
+
+        /* Top HUD */
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+        }
+
+        .stat-box {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(8px);
+            border: 3px solid #38bdf8;
+            border-radius: 16px;
+            padding: 10px 20px;
+            color: white;
+            box-shadow: 0 6px 0 rgba(2, 132, 199, 0.8), 0 10px 20px rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .stat-box.coins {
+            border-color: #facc15;
+            box-shadow: 0 6px 0 rgba(202, 138, 4, 0.8), 0 10px 20px rgba(0,0,0,0.4);
+        }
+
+        .stat-value {
+            font-family: 'Fredoka One', cursive;
+            font-size: 1.8rem;
+            letter-spacing: 1px;
+            text-shadow: 2px 2px 0 #000;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: #94a3b8;
+            font-weight: 900;
+            display: block;
+        }
+
+        .coin-icon {
+            width: 32px;
+            height: 32px;
+            background: radial-gradient(circle at 30% 30%, #fef08a, #eab308);
+            border: 3px solid #ca8a04;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Fredoka One', cursive;
+            color: #854d0e;
+            font-size: 1.1rem;
+            box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2);
+        }
+
+        /* Screens (Start & Game Over) */
+        .screen-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(6px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            z-index: 20;
+            transition: opacity 0.3s ease;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .game-title {
+            font-family: 'Fredoka One', cursive;
+            font-size: clamp(3rem, 8vw, 5.5rem);
+            color: #fff;
+            text-transform: uppercase;
+            line-height: 0.95;
+            margin-bottom: 10px;
+            text-shadow: 
+                0 6px 0 #0284c7,
+                0 12px 0 #0369a1,
+                0 18px 25px rgba(0,0,0,0.6);
+            transform: rotate(-3deg);
+            animation: floatTitle 2.5s ease-in-out infinite;
+        }
+
+        .game-title span {
+            color: #facc15;
+            display: block;
+            text-shadow: 
+                0 6px 0 #ca8a04,
+                0 12px 0 #a16207,
+                0 18px 25px rgba(0,0,0,0.6);
+        }
+
+        @keyframes floatTitle {
+            0%, 100% { transform: rotate(-3deg) translateY(0); }
+            50% { transform: rotate(-2deg) translateY(-10px); }
+        }
+
+        .subtitle {
+            color: #e2e8f0;
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+            background: rgba(0,0,0,0.4);
+            padding: 8px 20px;
+            border-radius: 99px;
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+
+        .btn-play {
+            font-family: 'Fredoka One', cursive;
+            font-size: 1.8rem;
+            color: #fff;
+            background: linear-gradient(180deg, #4ade80 0%, #16a34a 100%);
+            border: 4px solid #fff;
+            border-radius: 24px;
+            padding: 16px 48px;
+            cursor: pointer;
+            box-shadow: 0 8px 0 #15803d, 0 15px 25px rgba(0,0,0,0.5);
+            transition: transform 0.1s, box-shadow 0.1s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-play:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 0 #15803d, 0 18px 30px rgba(0,0,0,0.6);
+        }
+
+        .btn-play:active {
+            transform: translateY(6px);
+            box-shadow: 0 2px 0 #15803d, 0 5px 10px rgba(0,0,0,0.4);
+        }
+
+        .controls-guide {
+            margin-top: 35px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .key-badge {
+            background: rgba(30, 41, 59, 0.9);
+            border: 2px solid #475569;
+            border-radius: 12px;
+            padding: 8px 14px;
+            color: #cbd5e1;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .key-icon {
+            background: #334155;
+            color: #fff;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 900;
+            border-bottom: 2px solid #0f172a;
+        }
+
+        /* Game Over Card */
+        .gameover-card {
+            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+            border: 4px solid #f43f5e;
+            border-radius: 28px;
+            padding: 30px 40px;
+            box-shadow: 0 10px 0 #be123c, 0 25px 50px rgba(0,0,0,0.7);
+            max-width: 420px;
+            width: 100%;
+            margin-bottom: 25px;
+        }
+
+        .gameover-title {
+            font-family: 'Fredoka One', cursive;
+            font-size: 2.8rem;
+            color: #fb7185;
+            text-shadow: 0 4px 0 #881337;
+            margin-bottom: 20px;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0,0,0,0.3);
+            padding: 12px 18px;
+            border-radius: 14px;
+            margin-bottom: 12px;
+            color: #fff;
+            font-size: 1.2rem;
+        }
+
+        .summary-row span:last-child {
+            font-family: 'Fredoka One', cursive;
+            font-size: 1.5rem;
+            color: #38bdf8;
+        }
+
+        .summary-row.gold span:last-child {
+            color: #facc15;
+        }
+
+        /* On-screen Mobile Controls (Optional bottom bar outside gameplay area) */
+        .mobile-controls {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            pointer-events: auto;
+            opacity: 0.85;
+        }
+
+        .ctrl-btn {
+            width: 58px;
+            height: 58px;
+            border-radius: 18px;
+            background: rgba(15, 23, 42, 0.7);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 0 rgba(0,0,0,0.5);
+        }
+
+        .ctrl-btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 rgba(0,0,0,0.5);
+            background: rgba(56, 189, 248, 0.5);
+        }
+
+        @media (min-width: 768px) {
+            .mobile-controls {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <!-- HUD Saat Bermain -->
+    <div id="ui-layer">
+        <div class="hud-top">
+            <div class="stat-box">
+                <div>
+                    <span class="stat-label">Skor</span>
+                    <span class="stat-value" id="score-display">00000</span>
+                </div>
+            </div>
+
+            <div class="stat-box coins">
+                <div class="coin-icon">$</div>
+                <div>
+                    <span class="stat-label">Koin</span>
+                    <span class="stat-value" id="coin-display">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tombol Kontrol Sentuh Tambahan untuk Mobile -->
+        <div class="mobile-controls" id="mobile-pad">
+            <button class="ctrl-btn" id="btn-left" aria-label="Kiri">◀</button>
+            <button class="ctrl-btn" id="btn-up" aria-label="Lompat">▲</button>
+            <button class="ctrl-btn" id="btn-down" aria-label="Menunduk">▼</button>
+            <button class="ctrl-btn" id="btn-right" aria-label="Kanan">▶</button>
+        </div>
+    </div>
+
+    <!-- Layar Mulai (Start Screen) -->
+    <div id="start-screen" class="screen-overlay">
+        <h1 class="game-title">SUBWAY<span>RUNNER 3D</span></h1>
+        <p class="subtitle">Hindari kereta, lompati rintangan, & kumpulkan koin!</p>
+        
+        <button class="btn-play" id="start-btn">MAIN SEKARANG</button>
+
+        <div class="controls-guide">
+            <div class="key-badge"><span class="key-icon">◀ ▶</span> / Swipe: Pindah Jalur</div>
+            <div class="key-badge"><span class="key-icon">▲</span> / Swipe Atas: Lompat</div>
+            <div class="key-badge"><span class="key-icon">▼</span> / Swipe Bawah: Berguling</div>
+        </div>
+    </div>
+
+    <!-- Layar Game Over -->
+    <div id="gameover-screen" class="screen-overlay hidden">
+        <div class="gameover-card">
+            <h2 class="gameover-title">TERTANGKAP!</h2>
+            <div class="summary-row">
+                <span>Skor Akhir</span>
+                <span id="final-score">0</span>
+            </div>
+            <div class="summary-row">
+                <span>Skor Tertinggi</span>
+                <span id="high-score">0</span>
+            </div>
+            <div class="summary-row gold">
+                <span>Koin Terkumpul</span>
+                <span id="final-coins">0</span>
+            </div>
+        </div>
+        <button class="btn-play" id="restart-btn">MAIN LAGI</button>
+    </div>
+</div>
+
+<script>
+/**
+ * SUBWAY RUNNER 3D - SINGLE FILE HTML5 GAME
+ * Menggunakan Three.js (r128) untuk 3D rendering dan Tone.js untuk efek audio.
+ */
+
+// --- KONFIGURASI GAME ---
+const CONFIG = {
+    laneWidth: 3.2,          // Jarak antar jalur (-3.2, 0, +3.2)
+    baseSpeed: 28,           // Kecepatan lari awal
+    maxSpeed: 65,            // Kecepatan maksimal
+    speedIncrement: 0.35,    // Pertambahan kecepatan per detik
+    gravity: -55,            // Gravitasi lompatan
+    jumpForce: 19,           // Kekuatan lompat
+    rollDuration: 0.65,      // Durasi menunduk/berguling (detik)
+    spawnDistance: -130,     // Jarak kemunculan rintangan di depan
+    despawnDistance: 25      // Jarak penghapusan objek di belakang kamera
+};
+
+// --- VARIABEL GLOBAL ---
+let scene, camera, renderer;
+let playerGroup, playerBody, playerHead, leftArm, rightArm, leftLeg, rightLeg;
+let groundTiles = [];
+let obstacles = [];
+let coins = [];
+let sceneryObjects = [];
+let particles = [];
+
+// State Game
+let gameState = 'START'; // 'START', 'PLAYING', 'GAMEOVER'
+let score = 0;
+let highScore = parseInt(localStorage.getItem('subway3d_highscore')) || 0;
+let coinCount = 0;
+let currentSpeed = CONFIG.baseSpeed;
+let clock = new THREE.Clock();
+
+// State Pemain
+let currentLane = 0; // -1 (Kiri), 0 (Tengah), 1 (Kanan)
+let targetX = 0;
+let playerY = 0;
+let velocityY = 0;
+let isJumping = false;
+let isRolling = false;
+let rollTimer = 0;
+let runAnimTime = 0;
+
+// Timer Spawn
+let spawnTimer = 0;
+let screenShake = 0;
+
+// Sistem Audio (Tone.js)
+let audioInitialized = false;
+let jumpSynth, coinSynth, crashSynth, swipeSynth;
+
+function initAudio() {
+    if (audioInitialized) return;
+    try {
+        Tone.start();
+        
+        // Suara Koin
+        coinSynth = new Tone.Synth({
+            oscillator: { type: 'sine' },
+            envelope: { attack: 0.01, decay: 0.15, sustain: 0, release: 0.1 }
+        }).toDestination();
+        coinSynth.volume.value = -8;
+
+        // Suara Lompat
+        jumpSynth = new Tone.Synth({
+            oscillator: { type: 'triangle' },
+            envelope: { attack: 0.02, decay: 0.2, sustain: 0, release: 0.1 }
+        }).toDestination();
+        jumpSynth.volume.value = -10;
+
+        // Suara Pindah Jalur / Roll
+        swipeSynth = new Tone.MembraneSynth({
+            pitchDecay: 0.05,
+            octaves: 2,
+            envelope: { attack: 0.005, decay: 0.1, sustain: 0 }
+        }).toDestination();
+        swipeSynth.volume.value = -12;
+
+        // Suara Tabrakan
+        crashSynth = new Tone.NoiseSynth({
+            noise: { type: 'brown' },
+            envelope: { attack: 0.01, decay: 0.4, sustain: 0 }
+        }).toDestination();
+        crashSynth.volume.value = -4;
+
+        audioInitialized = true;
+    } catch (e) {
+        console.warn("Audio init skipped:", e);
+    }
+}
+
+function playSound(type) {
+    if (!audioInitialized) return;
+    try {
+        const now = Tone.now();
+        if (type === 'coin') {
+            coinSynth.triggerAttackRelease('B5', '16n', now);
+            coinSynth.triggerAttackRelease('E6', '16n', now + 0.06);
+        } else if (type === 'jump') {
+            jumpSynth.triggerAttackRelease('C4', '8n', now);
+            jumpSynth.frequency.rampTo('G4', 0.15, now);
+        } else if (type === 'swipe') {
+            swipeSynth.triggerAttackRelease('G2', '32n', now);
+        } else if (type === 'crash') {
+            crashSynth.triggerAttackRelease('8n', now);
+        }
+    } catch (e) {}
+}
+
+// --- INISIALISASI THREE.JS ---
+function initThree() {
+    const container = document.getElementById('game-container');
+
+    // Scene & Kabut (Fog) untuk efek kedalaman
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x38bdf8); // Langit biru cerah
+    scene.fog = new THREE.FogExp2(0x38bdf8, 0.011);
+
+    // Kamera Perspektif
+    camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 180);
+    camera.position.set(0, 6.2, 10.5);
+    camera.lookAt(0, 2.2, -10);
+
+    // Renderer
+    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.insertBefore(renderer.domElement, container.firstChild);
+
+    // Pencahayaan (Lighting)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xfffbeb, 0.95);
+    dirLight.position.set(15, 30, 20);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 1024;
+    dirLight.shadow.mapSize.height = 1024;
+    dirLight.shadow.camera.near = 0.5;
+    dirLight.shadow.camera.far = 100;
+    const d = 25;
+    dirLight.shadow.camera.left = -d;
+    dirLight.shadow.camera.right = d;
+    dirLight.shadow.camera.top = d;
+    dirLight.shadow.camera.bottom = -d;
+    scene.add(dirLight);
+
+    // Bangun Dunia & Karakter
+    buildEnvironment();
+    buildPlayer();
+
+    // Event Resize
+    window.addEventListener('resize', onWindowResize);
+}
+
+// --- MEMBANGUN LINGKUNGAN (REL KERETA & BANGUNAN) ---
+function buildEnvironment() {
+    // Membuat 8 segmen rel yang berulang (infinite treadmill)
+    const segmentLength = 25;
+    for (let i = 0; i < 8; i++) {
+        const zPos = -i * segmentLength + 20;
+        const segment = createTrackSegment(segmentLength);
+        segment.position.z = zPos;
+        scene.add(segment);
+        groundTiles.push(segment);
+    }
+}
+
+function createTrackSegment(length) {
+    const group = new THREE.Group();
+
+    // Tanah / Kerikil Rel
+    const groundGeo = new THREE.PlaneGeometry(14, length);
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.9 });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    group.add(ground);
+
+    // Trotoar / Dinding Pembatas Kiri & Kanan
+    const wallGeo = new THREE.BoxGeometry(3, 1.2, length);
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8 });
+    
+    const leftWall = new THREE.Mesh(wallGeo, wallMat);
+    leftWall.position.set(-7.5, 0.6, 0);
+    leftWall.receiveShadow = true;
+    group.add(leftWall);
+
+    const rightWall = new THREE.Mesh(wallGeo, wallMat);
+    rightWall.position.set(7.5, 0.6, 0);
+    rightWall.receiveShadow = true;
+    group.add(rightWall);
+
+    // 3 Jalur Rel Kereta
+    const railMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.7, roughness: 0.3 });
+    const tieMat = new THREE.MeshStandardMaterial({ color: 0x3f2e21, roughness: 0.9 });
+
+    [-CONFIG.laneWidth, 0, CONFIG.laneWidth].forEach(laneX => {
+        // Dua batang besi rel per jalur
+        const railGeo = new THREE.BoxGeometry(0.15, 0.15, length);
+        const railL = new THREE.Mesh(railGeo, railMat);
+        railL.position.set(laneX - 0.65, 0.08, 0);
+        group.add(railL);
+
+        const railR = new THREE.Mesh(railGeo, railMat);
+        railR.position.set(laneX + 0.65, 0.08, 0);
+        group.add(railR);
+
+        // Bantalan kayu rel
+        const tieGeo = new THREE.BoxGeometry(1.8, 0.08, 0.35);
+        for (let z = -length / 2 + 1; z < length / 2; z += 1.5) {
+            const tie = new THREE.Mesh(tieGeo, tieMat);
+            tie.position.set(laneX, 0.04, z);
+            tie.receiveShadow = true;
+            group.add(tie);
+        }
+    });
+
+    // Gedung Warna-warni di Samping Rel (Dekorasi Kota)
+    const buildingColors = [0xf43f5e, 0xf59e0b, 0x10b981, 0x6366f1, 0xec4899, 0x06b6d4];
+    [-11.5, 11.5].forEach(sideX => {
+        const bHeight = 8 + Math.random() * 14;
+        const bWidth = 5;
+        const bDepth = length - 2;
+        const bGeo = new THREE.BoxGeometry(bWidth, bHeight, bDepth);
+        const color = buildingColors[Math.floor(Math.random() * buildingColors.length)];
+        const bMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.7 });
+        const building = new THREE.Mesh(bGeo, bMat);
+        building.position.set(sideX, bHeight / 2, 0);
+        building.castShadow = true;
+        building.receiveShadow = true;
+        group.add(building);
+
+        // Jendela Gedung Sederhana
+        const winGeo = new THREE.PlaneGeometry(0.8, 1.2);
+        const winMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+        const faceX = sideX < 0 ? sideX + bWidth / 2 + 0.02 : sideX - bWidth / 2 - 0.02;
+        const rotY = sideX < 0 ? Math.PI / 2 : -Math.PI / 2;
+
+        for (let wy = 3; wy < bHeight - 2; wy += 3) {
+            for (let wz = -bDepth / 2 + 3; wz < bDepth / 2 - 2; wz += 4) {
+                if (Math.random() > 0.3) {
+                    const win = new THREE.Mesh(winGeo, winMat);
+                    win.position.set(faceX, wy, wz);
+                    win.rotation.y = rotY;
+                    group.add(win);
+                }
+            }
+        }
+    });
+
+    return group;
+}
+
+// --- MEMBANGUN KARAKTER PEMAIN ---
+function buildPlayer() {
+    playerGroup = new THREE.Group();
+
+    // Bahan Karakter (Jaket Merah, Celana Biru, Topi Kuning)
+    const jacketMat = new THREE.MeshStandardMaterial({ color: 0xef4444 });
+    const pantsMat = new THREE.MeshStandardMaterial({ color: 0x1d4ed8 });
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0xfdba74 });
+    const hatMat = new THREE.MeshStandardMaterial({ color: 0xfacc15 });
+    const shoeMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+
+    // Badan (Torso)
+    const bodyGeo = new THREE.BoxGeometry(0.85, 1.0, 0.5);
+    playerBody = new THREE.Mesh(bodyGeo, jacketMat);
+    playerBody.position.y = 1.25;
+    playerBody.castShadow = true;
+    playerGroup.add(playerBody);
+
+    // Ransel
+    const bagGeo = new THREE.BoxGeometry(0.65, 0.75, 0.3);
+    const bagMat = new THREE.MeshStandardMaterial({ color: 0x0f172a });
+    const bag = new THREE.Mesh(bagGeo, bagMat);
+    bag.position.set(0, 1.25, 0.35);
+    playerGroup.add(bag);
+
+    // Kepala & Topi
+    playerHead = new THREE.Group();
+    playerHead.position.set(0, 2.05, 0);
+
+    const headGeo = new THREE.BoxGeometry(0.65, 0.65, 0.65);
+    const headMesh = new THREE.Mesh(headGeo, skinMat);
+    headMesh.castShadow = true;
+    playerHead.add(headMesh);
+
+    const hatGeo = new THREE.BoxGeometry(0.7, 0.25, 0.75);
+    const hatMesh = new THREE.Mesh(hatGeo, hatMat);
+    hatMesh.position.set(0, 0.32, 0.05);
+    playerHead.add(hatMesh);
+
+    playerGroup.add(playerHead);
+
+    // Lengan Kiri & Kanan
+    const armGeo = new THREE.BoxGeometry(0.26, 0.85, 0.26);
+    leftArm = new THREE.Mesh(armGeo, jacketMat);
+    leftArm.position.set(-0.6, 1.25, 0);
+    leftArm.castShadow = true;
+    playerGroup.add(leftArm);
+
+    rightArm = new THREE.Mesh(armGeo, jacketMat);
+    rightArm.position.set(0.6, 1.25, 0);
+    rightArm.castShadow = true;
+    playerGroup.add(rightArm);
+
+    // Kaki Kiri & Kanan
+    const legGeo = new THREE.BoxGeometry(0.32, 0.8, 0.35);
+    leftLeg = new THREE.Mesh(legGeo, pantsMat);
+    leftLeg.position.set(-0.24, 0.4, 0);
+    leftLeg.castShadow = true;
+    playerGroup.add(leftLeg);
+
+    rightLeg = new THREE.Mesh(legGeo, pantsMat);
+    rightLeg.position.set(0.24, 0.4, 0);
+    rightLeg.castShadow = true;
+    playerGroup.add(rightLeg);
+
+    // Sepatu
+    const shoeGeo = new THREE.BoxGeometry(0.34, 0.2, 0.48);
+    const leftShoe = new THREE.Mesh(shoeGeo, shoeMat);
+    leftShoe.position.set(0, -0.35, -0.05);
+    leftLeg.add(leftShoe);
+
+    const rightShoe = new THREE.Mesh(shoeGeo, shoeMat);
+    rightShoe.position.set(0, -0.35, -0.05);
+    rightLeg.add(rightShoe);
+
+    scene.add(playerGroup);
+}
+
+// --- SISTEM RINTANGAN & KOIN ---
+function spawnWave() {
+    const lanes = [-1, 0, 1];
+    // Acak urutan jalur
+    lanes.sort(() => Math.random() - 0.5);
+
+    const zBase = CONFIG.spawnDistance;
+
+    // Pilih 1 atau 2 jalur untuk diisi rintangan, sisakan minimal 1 jalur aman
+    const obstacleCount = Math.random() > 0.35 ? 2 : 1;
+
+    for (let i = 0; i < obstacleCount; i++) {
+        const lane = lanes[i];
+        const xPos = lane * CONFIG.laneWidth;
+        const randType = Math.random();
+
+        if (randType < 0.45) {
+            // 1. KERETA API (Tinggi, harus dihindari pindah jalur atau dilompati dari kereta lain)
+            createTrain(xPos, zBase - Math.random() * 8);
+        } else if (randType < 0.75) {
+            // 2. BARIKADE RENDAH (Bisa dilompati)
+            createBarrier(xPos, zBase, 'LOW');
+            // Taruh koin melengkung di atas barikade untuk memandu lompatan
+            spawnCoinArc(xPos, zBase);
+        } else {
+            // 3. PALANG TINGGI (Bisa dilewati dengan berguling / roll)
+            createBarrier(xPos, zBase, 'HIGH');
+            // Taruh koin di bawah palang
+            spawnCoinLine(xPos, zBase, 3, 0.6);
+        }
+    }
+
+    // Di jalur yang bebas rintangan, munculkan deretan koin
+    const freeLane = lanes[obstacleCount];
+    if (freeLane !== undefined && Math.random() > 0.25) {
+        spawnCoinLine(freeLane * CONFIG.laneWidth, zBase, 5, 0.9);
+    }
+}
+
+function createTrain(x, z) {
+    const trainGroup = new THREE.Group();
+    const length = 14;
+    const width = 2.3;
+    const height = 3.1;
+
+    // Warna Kereta Acak (Biru, Kuning, Hijau, Merah)
+    const colors = [0x0284c7, 0xd97706, 0x059669, 0xdc2626];
+    const bodyColor = colors[Math.floor(Math.random() * colors.length)];
+
+    // Badan Kereta
+    const bodyGeo = new THREE.BoxGeometry(width, height, length);
+    const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.4 });
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.y = height / 2 + 0.2;
+    body.castShadow = true;
+    body.receiveShadow = true;
+    trainGroup.add(body);
+
+    // Atap Kereta
+    const roofGeo = new THREE.BoxGeometry(width - 0.2, 0.25, length - 0.2);
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0 });
+    const roof = new THREE.Mesh(roofGeo, roofMat);
+    roof.position.y = height + 0.3;
+    trainGroup.add(roof);
+
+    // Kaca Depan & Lampu Kereta
+    const windshieldGeo = new THREE.PlaneGeometry(1.8, 1.1);
+    const windshieldMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
+    const windshield = new THREE.Mesh(windshieldGeo, windshieldMat);
+    windshield.position.set(0, 2.2, length / 2 + 0.02);
+    trainGroup.add(windshield);
+
+    const lightGeo = new THREE.CircleGeometry(0.22, 12);
+    const lightMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+    const lightL = new THREE.Mesh(lightGeo, lightMat);
+    lightL.position.set(-0.65, 1.0, length / 2 + 0.02);
+    trainGroup.add(lightL);
+
+    const lightR = new THREE.Mesh(lightGeo, lightMat);
+    lightR.position.set(0.65, 1.0, length / 2 + 0.02);
+    trainGroup.add(lightR);
+
+    trainGroup.position.set(x, 0, z);
+    scene.add(trainGroup);
+
+    // Simpan data collider (Bounding Box)
+    obstacles.push({
+        mesh: trainGroup,
+        type: 'TRAIN',
+        x: x,
+        z: z,
+        width: width * 0.85,
+        depth: length,
+        minY: 0,
+        maxY: height + 0.3
+    });
+}
+
+function createBarrier(x, z, kind) {
+    const group = new THREE.Group();
+    const postMat = new THREE.MeshStandardMaterial({ color: 0x334155 });
+    const stripeMat = new THREE.MeshStandardMaterial({ color: 0xf97316 }); // Oranye terang
+
+    // Tiang Kiri & Kanan
+    const postGeo = new THREE.BoxGeometry(0.2, kind === 'LOW' ? 1.2 : 2.8, 0.2);
+    const postL = new THREE.Mesh(postGeo, postMat);
+    postL.position.set(-1.1, kind === 'LOW' ? 0.6 : 1.4, 0);
+    postL.castShadow = true;
+    group.add(postL);
+
+    const postR = new THREE.Mesh(postGeo, postMat);
+    postR.position.set(1.1, kind === 'LOW' ? 0.6 : 1.4, 0);
+    postR.castShadow = true;
+    group.add(postR);
+
+    // Papan Palang
+    const boardGeo = new THREE.BoxGeometry(2.4, 0.65, 0.25);
+    const board = new THREE.Mesh(boardGeo, stripeMat);
+    const boardY = kind === 'LOW' ? 0.85 : 2.1;
+    board.position.set(0, boardY, 0);
+    board.castShadow = true;
+    group.add(board);
+
+    group.position.set(x, 0, z);
+    scene.add(group);
+
+    obstacles.push({
+        mesh: group,
+        type: kind,
+        x: x,
+        z: z,
+        width: 2.1,
+        depth: 0.6,
+        minY: kind === 'LOW' ? 0 : 1.5, // Jika HIGH, bagian bawah (0 - 1.5) kosong untuk berguling
+        maxY: kind === 'LOW' ? 1.2 : 2.8
+    });
+}
+
+function createCoinMesh(x, y, z) {
+    const geo = new THREE.CylinderGeometry(0.45, 0.45, 0.14, 16);
+    const mat = new THREE.MeshStandardMaterial({
+        color: 0xfacc15,
+        emissive: 0xca8a04,
+        emissiveIntensity: 0.3,
+        metalness: 0.8,
+        roughness: 0.2
+    });
+    const coin = new THREE.Mesh(geo, mat);
+    coin.rotation.x = Math.PI / 2;
+    coin.position.set(x, y, z);
+    scene.add(coin);
+
+    coins.push({
+        mesh: coin,
+        x: x,
+        y: y,
+        z: z,
+        collected: false
+    });
+}
+
+function spawnCoinLine(x, startZ, count, y) {
+    for (let i = 0; i < count; i++) {
+        createCoinMesh(x, y, startZ - i * 2.4);
+    }
+}
+
+function spawnCoinArc(x, centerZ) {
+    const offsets = [-3.2, -1.6, 0, 1.6, 3.2];
+    const heights = [1.0, 2.1, 2.7, 2.1, 1.0];
+    offsets.forEach((dz, idx) => {
+        createCoinMesh(x, heights[idx], centerZ + dz);
+    });
+}
+
+// --- EFEK PARTIKEL ---
+function spawnParticles(x, y, z, color, count = 10) {
+    const geo = new THREE.BoxGeometry(0.18, 0.18, 0.18);
+    const mat = new THREE.MeshBasicMaterial({ color: color });
+    for (let i = 0; i < count; i++) {
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(x, y, z);
+        scene.add(mesh);
+        particles.push({
+            mesh: mesh,
+            vx: (Math.random() - 0.5) * 8,
+            vy: Math.random() * 7 + 2,
+            vz: (Math.random() - 0.5) * 8,
+            life: 0.5
+        });
+    }
+}
+
+// --- KONTROL PEMAIN ---
+function moveLeft() {
+    if (gameState !== 'PLAYING') return;
+    if (currentLane > -1) {
+        currentLane--;
+        targetX = currentLane * CONFIG.laneWidth;
+        playSound('swipe');
+    }
+}
+
+function moveRight() {
+    if (gameState !== 'PLAYING') return;
+    if (currentLane < 1) {
+        currentLane++;
+        targetX = currentLane * CONFIG.laneWidth;
+        playSound('swipe');
+    }
+}
+
+function jump() {
+    if (gameState !== 'PLAYING') return;
+    if (!isJumping) {
+        isJumping = true;
+        isRolling = false;
+        velocityY = CONFIG.jumpForce;
+        playSound('jump');
+        spawnParticles(playerGroup.position.x, 0.2, playerGroup.position.z, 0xe2e8f0, 6);
+    }
+}
+
+function roll() {
+    if (gameState !== 'PLAYING') return;
+    isRolling = true;
+    rollTimer = CONFIG.rollDuration;
+    // Jika sedang di udara, langsung turun cepat (fast drop)
+    if (isJumping) {
+        velocityY = -32;
+    }
+    playSound('swipe');
+}
+
+// Input Keyboard
+window.addEventListener('keydown', (e) => {
+    if (gameState !== 'PLAYING') {
+        if (e.code === 'Space' || e.code === 'Enter') {
+            startGame();
+        }
+        return;
+    }
+
+    switch (e.code) {
+        case 'ArrowLeft':
+        case 'KeyA':
+            moveLeft();
+            break;
+        case 'ArrowRight':
+        case 'KeyD':
+            moveRight();
+            break;
+        case 'ArrowUp':
+        case 'KeyW':
+        case 'Space':
+            jump();
+            break;
+        case 'ArrowDown':
+        case 'KeyS':
+            roll();
+            break;
+    }
+});
+
+// Input Sentuh (Swipe Gestures)
+let touchStartX = 0;
+let touchStartY = 0;
+
+window.addEventListener('touchstart', (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+    touchStartY = e.changedTouches[0].screenY;
+}, { passive: true });
+
+window.addEventListener('touchend', (e) => {
+    if (gameState !== 'PLAYING') return;
+    const touchEndX = e.changedTouches[0].screenX;
+    const touchEndY = e.changedTouches[0].screenY;
+
+    const dx = touchEndX - touchStartX;
+    const dy = touchEndY - touchStartY;
+
+    if (Math.abs(dx) < 25 && Math.abs(dy) < 25) return; // Tap biasa diabaikan
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+        // Swipe Horizontal
+        if (dx > 0) moveRight();
+        else moveLeft();
+    } else {
+        // Swipe Vertikal
+        if (dy < 0) jump();
+        else roll();
+    }
+}, { passive: true });
+
+// Tombol UI & Mobile Pad
+document.getElementById('start-btn').addEventListener('click', startGame);
+document.getElementById('restart-btn').addEventListener('click', startGame);
+document.getElementById('btn-left').addEventListener('click', moveLeft);
+document.getElementById('btn-right').addEventListener('click', moveRight);
+document.getElementById('btn-up').addEventListener('click', jump);
+document.getElementById('btn-down').addEventListener('click', roll);
+
+// --- LOGIKA UTAMA GAME ---
+function startGame() {
+    initAudio();
+    
+    // Reset State
+    gameState = 'PLAYING';
+    score = 0;
+    coinCount = 0;
+    currentSpeed = CONFIG.baseSpeed;
+    currentLane = 0;
+    targetX = 0;
+    playerY = 0;
+    velocityY = 0;
+    isJumping = false;
+    isRolling = false;
+    spawnTimer = 0;
+
+    // Reset Posisi Karakter
+    playerGroup.position.set(0, 0, 0);
+    playerGroup.scale.set(1, 1, 1);
+    playerGroup.rotation.set(0, 0, 0);
+
+    // Bersihkan rintangan & koin lama
+    obstacles.forEach(o => scene.remove(o.mesh));
+    obstacles = [];
+    coins.forEach(c => scene.remove(c.mesh));
+    coins = [];
+
+    // Update UI
+    document.getElementById('start-screen').classList.add('hidden');
+    document.getElementById('gameover-screen').classList.add('hidden');
+    updateHUD();
+}
+
+function triggerGameOver() {
+    gameState = 'GAMEOVER';
+    screenShake = 0.5;
+    playSound('crash');
+    spawnParticles(playerGroup.position.x, playerY + 1, 0, 0xef4444, 25);
+
+    const finalScoreInt = Math.floor(score);
+    if (finalScoreInt > highScore) {
+        highScore = finalScoreInt;
+        localStorage.setItem('subway3d_highscore', highScore);
+    }
+
+    document.getElementById('final-score').innerText = finalScoreInt;
+    document.getElementById('high-score').innerText = highScore;
+    document.getElementById('final-coins').innerText = coinCount;
+    document.getElementById('gameover-screen').classList.remove('hidden');
+}
+
+function updateHUD() {
+    document.getElementById('score-display').innerText = String(Math.floor(score)).padStart(5, '0');
+    document.getElementById('coin-display').innerText = coinCount;
+}
+
+function updatePlayer(dt) {
+    // Gerakan Horizontal (Smooth Lerp antar jalur)
+    playerGroup.position.x += (targetX - playerGroup.position.x) * Math.min(1, dt * 16);
+
+    // Efek Miring saat belok
+    const tilt = (targetX - playerGroup.position.x) * -0.12;
+    playerGroup.rotation.z = tilt;
+
+    // Gerakan Vertikal (Lompat & Gravitasi)
+    if (isJumping) {
+        playerY += velocityY * dt;
+        velocityY += CONFIG.gravity * dt;
+
+        if (playerY <= 0) {
+            playerY = 0;
+            isJumping = false;
+            velocityY = 0;
+        }
+    }
+    playerGroup.position.y = playerY;
+
+    // Logika Berguling (Roll)
+    if (isRolling) {
+        rollTimer -= dt;
+        playerGroup.scale.y = 0.5; // Mengecilkan tinggi karakter
+        playerGroup.rotation.x = -0.4;
+        if (rollTimer <= 0) {
+            isRolling = false;
+            playerGroup.scale.y = 1;
+            playerGroup.rotation.x = 0;
+        }
+    } else {
+        playerGroup.scale.y += (1 - playerGroup.scale.y) * Math.min(1, dt * 15);
+        playerGroup.rotation.x += (0 - playerGroup.rotation.x) * Math.min(1, dt * 15);
+    }
+
+    // Animasi Lari (Ayunan Kaki & Tangan)
+    if (!isJumping && !isRolling) {
+        runAnimTime += dt * (currentSpeed * 0.45);
+        const swing = Math.sin(runAnimTime) * 0.85;
+        leftLeg.rotation.x = swing;
+        rightLeg.rotation.x = -swing;
+        leftArm.rotation.x = -swing * 0.8;
+        rightArm.rotation.x = swing * 0.8;
+        // Sedikit pantulan badan saat berlari
+        playerBody.position.y = 1.25 + Math.abs(Math.cos(runAnimTime)) * 0.12;
+    } else if (isJumping) {
+        leftLeg.rotation.x = 0.5;
+        rightLeg.rotation.x = -0.4;
+        leftArm.rotation.x = -0.8;
+        rightArm.rotation.x = -0.8;
+    }
+}
+
+function updateWorld(dt) {
+    // Tingkatkan kecepatan bertahap
+    if (currentSpeed < CONFIG.maxSpeed) {
+        currentSpeed += CONFIG.speedIncrement * dt;
+    }
+
+    // Tambah skor berdasarkan jarak tempuh
+    score += currentSpeed * dt * 0.6;
+    updateHUD();
+
+    // Gerakkan Rel & Lingkungan
+    const moveZ = currentSpeed * dt;
+    groundTiles.forEach(tile => {
+        tile.position.z += moveZ;
+        if (tile.position.z > 45) {
+            tile.position.z -= groundTiles.length * 25;
+        }
+    });
+
+    // Spawn Rintangan Baru
+    spawnTimer -= moveZ;
+    if (spawnTimer <= 0) {
+        spawnWave();
+        // Jarak antar gelombang menyesuaikan kecepatan
+        spawnTimer = 26 + (currentSpeed * 0.25);
+    }
+
+    // Hitbox Pemain saat ini
+    const pX = playerGroup.position.x;
+    const pMinY = playerY;
+    const pMaxY = playerY + (isRolling ? 1.05 : 2.25);
+    const pHalfW = 0.35;
+    const pHalfD = 0.35;
+
+    // Update & Cek Tabrakan Rintangan
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+        const obs = obstacles[i];
+        obs.z += moveZ;
+        obs.mesh.position.z = obs.z;
+
+        // Cek Kolisi AABB (Axis-Aligned Bounding Box)
+        const oHalfW = obs.width / 2;
+        const oHalfD = obs.depth / 2;
+
+        const overlapX = Math.abs(pX - obs.x) < (pHalfW + oHalfW);
+        const overlapZ = Math.abs(0 - obs.z) < (pHalfD + oHalfD);
+        const overlapY = (pMinY < obs.maxY - 0.15) && (pMaxY > obs.minY + 0.1);
+
+        if (overlapX && overlapZ && overlapY) {
+            // Pemain bisa mendarat di atas atap kereta!
+            if (obs.type === 'TRAIN' && pMinY >= obs.maxY - 0.45 && velocityY <= 0) {
+                playerY = obs.maxY;
+                isJumping = false;
+                velocityY = 0;
+            } else {
+                triggerGameOver();
+                return;
+            }
+        }
+
+        // Hapus rintangan yang sudah jauh di belakang
+        if (obs.z - oHalfD > CONFIG.despawnDistance) {
+            scene.remove(obs.mesh);
+            obstacles.splice(i, 1);
+        }
+    }
+
+    // Update & Cek Pengambilan Koin
+    for (let i = coins.length - 1; i >= 0; i--) {
+        const c = coins[i];
+        c.z += moveZ;
+        c.mesh.position.z = c.z;
+        c.mesh.rotation.z += dt * 4; // Putar koin
+
+        // Cek jarak pemain dengan koin
+        if (!c.collected) {
+            const dx = Math.abs(pX - c.x);
+            const dy = Math.abs((playerY + 1.0) - c.y);
+            const dz = Math.abs(0 - c.z);
+
+            if (dx < 1.05 && dy < 1.35 && dz < 1.1) {
+                c.collected = true;
+                coinCount++;
+                score += 25;
+                playSound('coin');
+                spawnParticles(c.x, c.y, c.z, 0xfacc15, 6);
+                scene.remove(c.mesh);
+                coins.splice(i, 1);
+                continue;
+            }
+        }
+
+        if (c.z > CONFIG.despawnDistance) {
+            scene.remove(c.mesh);
+            coins.splice(i, 1);
+        }
+    }
+}
+
+function updateParticles(dt) {
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.life -= dt;
+        p.mesh.position.x += p.vx * dt;
+        p.mesh.position.y += p.vy * dt;
+        p.mesh.position.z += p.vz * dt;
+        p.vy -= 20 * dt;
+        p.mesh.scale.setScalar(Math.max(0, p.life * 2));
+
+        if (p.life <= 0) {
+            scene.remove(p.mesh);
+            particles.splice(i, 1);
+        }
+    }
+}
+
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// --- GAME LOOP UTAMA ---
+function animate() {
+    requestAnimationFrame(animate);
+
+    const dt = Math.min(clock.getDelta(), 0.05); // Batasi delta time agar stabil
+
+    if (gameState === 'PLAYING') {
+        updatePlayer(dt);
+        updateWorld(dt);
+
+        // Kamera mengikuti pemain secara halus
+        camera.position.x += (playerGroup.position.x * 0.45 - camera.position.x) * dt * 6;
+        camera.position.y += ((6.2 + playerY * 0.35) - camera.position.y) * dt * 6;
+    } else if (gameState === 'START') {
+        // Animasi idle di layar awal
+        runAnimTime += dt * 3;
+        playerGroup.position.y = Math.abs(Math.sin(runAnimTime)) * 0.25;
+        camera.position.x = Math.sin(runAnimTime * 0.3) * 1.5;
+        camera.lookAt(0, 2, -10);
+    }
+
+    // Efek Getar Kamera saat Tabrakan
+    if (screenShake > 0) {
+        screenShake -= dt;
+        camera.position.x += (Math.random() - 0.5) * 0.6;
+        camera.position.y += (Math.random() - 0.5) * 0.6;
+    }
+
+    updateParticles(dt);
+    renderer.render(scene, camera);
+}
+
+// Mulai inisialisasi setelah halaman dimuat
+window.onload = function () {
+    initThree();
+    animate();
+};
+</script>
+</body>
+</html>

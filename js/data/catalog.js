@@ -1,6 +1,14 @@
 // js/data/catalog.js — daftar game dan kategori. Tambah game baru cukup di sini
 // (dan tambahkan runner-nya di js/games/*.js dengan key yang sama).
 export const GAMES = [
+  // featured: tampil di beranda. Game tanpa featured hanya muncul lewat Kategori / Explore / pencarian.
+  // embed: game HTML mandiri di games/*.html, dibuka lewat iframe.
+  { id: 'neonrush', name: 'Neon Rush', game: 'neonrush', emoji: '🏎️', cats: ['Racing', 'Action', 'Arcade'], isNew: true, featured: true, embed: true, bg: 'linear-gradient(135deg,#500724,#1e1b4b)' },
+  { id: 'subway', name: 'Subway Runner 3D', game: 'subway', emoji: '🏃', cats: ['Platform', 'Action', 'Arcade'], isNew: true, featured: true, embed: true, bg: 'linear-gradient(135deg,#1e3a8a,#0f766e)' },
+  { id: 'hillclimb', name: 'Hill Climb Adventure', game: 'hillclimb', emoji: '🚙', cats: ['Racing', 'Adventure', 'Action'], isNew: true, featured: true, embed: true, bg: 'linear-gradient(135deg,#7c2d12,#0f172a)' },
+  { id: 'tropicalkart', name: 'Tropical Kart Racing 3D', game: 'tropicalkart', emoji: '🏝️', cats: ['Racing', 'Adventure'], isNew: true, featured: true, embed: true, bg: 'linear-gradient(135deg,#0e7490,#065f46)' },
+  { id: 'kart', name: 'Tropical Kart Lite', game: 'kart', emoji: '🏁', cats: ['Racing', 'Arcade'], isNew: true, featured: true, embed: true, bg: 'linear-gradient(135deg,#0f766e,#04141c)' },
+  { id: 'neonblast', name: 'Neonblast', game: 'neonblast', emoji: '🧱', cats: ['Arcade', 'Action'], isNew: true, featured: true, embed: true, bg: 'linear-gradient(135deg,#0c4a6e,#04060b)' },
   { id: 'memory', name: 'Memory Challenge', game: 'memory', emoji: '🧠', rating: 4.9, players: '2.1M', cats: ['Puzzle', 'Adventure'], bg: 'linear-gradient(135deg,#4c1d95,#1e3a8a)' },
   { id: 'racing', name: 'Racing Fever', game: 'racing', emoji: '🏎️', rating: 4.8, players: '1.8M', cats: ['Racing', 'Action', 'Sports'], isNew: true, bg: 'linear-gradient(135deg,#7f1d1d,#1e1b4b)' },
   { id: 'ttt', name: 'Tic Tac Toe', game: 'ttt', emoji: '❌', rating: 4.7, players: '1.5M', cats: ['Strategy', 'Simulation'], bg: 'linear-gradient(135deg,#1e1b4b,#0e7490)' },

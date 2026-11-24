@@ -1,0 +1,30 @@
+/* css/thumbs.css — thumbnail animasi + tampilan game embed (iframe) */
+.thumb.th{position:relative;display:block;overflow:hidden}
+.th .a{position:absolute;line-height:1;font-style:normal;color:#fde68a;font-weight:800;text-shadow:0 0 10px rgba(255,255,255,.4);animation:1s ease-in-out infinite both}
+.th .fx{position:absolute;inset:0;pointer-events:none}
+.t-run{animation-name:t-run;animation-timing-function:linear!important}
+.t-bob{animation-name:t-bob}.t-spin{animation-name:t-spin;animation-timing-function:linear!important}
+.t-pulse{animation-name:t-pulse}.t-sway{animation-name:t-sway}.t-slide{animation-name:t-slide}
+.t-fall{animation-name:t-fall;animation-timing-function:linear!important}.t-rise{animation-name:t-rise;animation-timing-function:ease-in!important}
+.t-none{animation:none}
+@keyframes t-run{from{left:-28%}to{left:112%}}
+@keyframes t-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+@keyframes t-spin{to{transform:rotate(360deg)}}
+@keyframes t-pulse{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.28);opacity:1}}
+@keyframes t-sway{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(12deg)}}
+@keyframes t-slide{0%,100%{transform:translateX(-26px)}50%{transform:translateX(26px)}}
+@keyframes t-fall{from{top:-30%}to{top:105%}}
+@keyframes t-rise{from{top:105%;opacity:1}to{top:-20%;opacity:.3}}
+.fx-stars{background:radial-gradient(1.5px 1.5px at 20% 30%,#fff,transparent),radial-gradient(1.5px 1.5px at 70% 60%,#fff,transparent),radial-gradient(1px 1px at 45% 85%,#fff,transparent),radial-gradient(1px 1px at 85% 15%,#fff,transparent);background-size:100% 62px;animation:t-stars 1.4s linear infinite}
+@keyframes t-stars{to{background-position:0 62px}}
+.fx-road{top:62%;background:linear-gradient(#0009,#0009),repeating-linear-gradient(90deg,#fff 0 16px,transparent 16px 40px);background-size:100% 100%,100% 3px;background-repeat:no-repeat,repeat-x;background-position:0 0,0 55%;animation:t-road .5s linear infinite}
+@keyframes t-road{to{background-position:0 0,-40px 55%}}
+.fx-grid{background:linear-gradient(rgba(53,224,255,.25) 1px,transparent 1px) 0 0/100% 18px,linear-gradient(90deg,rgba(53,224,255,.2) 1px,transparent 1px) 0 0/18px 100%;animation:t-grid 1.2s linear infinite}
+@keyframes t-grid{to{background-position:0 18px,0 0}}
+.fx-hills{top:58%;background:radial-gradient(60px 36px at 45px 100%,#14532d 98%,transparent) 0 0/90px 100% repeat-x;animation:t-hills 2.4s linear infinite}
+@keyframes t-hills{to{background-position:-90px 0}}
+/* game embed: iframe memenuhi layar, skor/pause bawaan disembunyikan */
+body.embed-game .gm-stage{padding:0;overflow:hidden;align-items:stretch}
+body.embed-game .playfield{max-width:none;width:100%;gap:0;align-items:stretch}
+.playfield iframe{width:100%;flex:1;min-height:0;border:0;display:block;background:#000}
+body.embed-game .gm-stats,body.embed-game #pauseBtn{display:none}

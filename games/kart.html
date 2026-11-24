@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#04141c">
+<title>HEYGAMMER — Tropical Kart Racing 3D</title>
+<style>
+  :root{
+    --ink:#04141c;
+    --teal:#0aa3a3;
+    --cyan:#3df0d8;
+    --sun:#ffb020;
+    --pink:#ff3d7f;
+    --leaf:#37e07a;
+    --panel:rgba(6,26,34,.82);
+    --panel2:rgba(9,38,50,.92);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0;padding:0;height:100%;width:100%;overflow:hidden;background:#04141c;
+    font-family:"Trebuchet MS","Segoe UI",system-ui,-apple-system,sans-serif;
+    color:#eafcff;user-select:none;-webkit-user-select:none;
+  }
+  canvas#renderCanvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none;}
+
+  /* ---------------- generic ---------------- */
+  .hidden{display:none !important;}
+  .btn{
+    border:none;border-radius:16px;padding:14px 26px;font-weight:800;font-size:16px;letter-spacing:.06em;
+    text-transform:uppercase;color:#04222b;cursor:pointer;
+    background:linear-gradient(180deg,#7ff7e0,#20c9b4 60%,#0f9c93);
+    box-shadow:0 6px 0 #0a6a67, 0 10px 22px rgba(0,0,0,.45), inset 0 2px 0 rgba(255,255,255,.55);
+    transition:transform .08s ease, box-shadow .08s ease, filter .15s;
+    font-family:inherit;
+  }
+  .btn:active{transform:translateY(4px);box-shadow:0 2px 0 #0a6a67, 0 4px 10px rgba(0,0,0,.4), inset 0 2px 0 rgba(255,255,255,.5);}
+  .btn.alt{
+    background:linear-gradient(180deg,#ffd479,#ffa41b 60%,#e07a00);
+    box-shadow:0 6px 0 #a25a00, 0 10px 22px rgba(0,0,0,.45), inset 0 2px 0 rgba(255,255,255,.5);
+    color:#33190a;
+  }
+  .btn.alt:active{box-shadow:0 2px 0 #a25a00, 0 4px 10px rgba(0,0,0,.4), inset 0 2px 0 rgba(255,255,255,.5);}
+  .btn.ghost{
+    background:rgba(255,255,255,.08);color:#cdeef5;
+    box-shadow:0 4px 0 rgba(0,0,0,.35), inset 0 0 0 2px rgba(120,240,230,.35);
+  }
+  .btn.small{padding:10px 16px;font-size:13px;border-radius:12px;}
+
+  /* ---------------- loading ---------------- */
+  #loading{
+    position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 50% 35%,#0d4a5c,#04141c 70%);
+  }
+  #loading h1{
+    margin:0 0 6px;font-size:clamp(22px,5vw,44px);letter-spacing:.16em;color:#8ff8e6;
+    text-shadow:0 0 22px rgba(61,240,216,.65),0 6px 0 #0a4a52;
+  }
+  #loading h2{margin:0 0 26px;font-size:clamp(11px,2.4vw,16px);letter-spacing:.42em;color:#ffb020;font-weight:700;}
+  .bar{width:min(70vw,420px);height:12px;border-radius:10px;background:rgba(255,255,255,.1);overflow:hidden;box-shadow:inset 0 2px 6px rgba(0,0,0,.6);}
+  .bar > i{display:block;height:100%;width:6%;border-radius:10px;background:linear-gradient(90deg,#3df0d8,#37e07a,#ffb020);transition:width .25s;}
+  #loadTxt{margin-top:14px;font-size:12px;letter-spacing:.24em;color:#79c9d4;}
+
+  /* ---------------- menu / garage ---------------- */
+  #menu{
+    position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;
+    pointer-events:none;
+  }
+  #menu .top{
+    padding:14px 20px 0;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none;
+  }
+  .brand{font-weight:900;letter-spacing:.18em;font-size:clamp(14px,3vw,20px);color:#8ff8e6;text-shadow:0 0 16px rgba(61,240,216,.7);}
+  .brand span{color:#ffb020;}
+  .brand small{display:block;font-size:9px;letter-spacing:.4em;color:#4fb3c4;font-weight:700;margin-top:2px;}
+
+  #menu .bottom{
+    margin-top:auto;padding:0 14px 18px;display:flex;flex-direction:column;gap:10px;pointer-events:none;
+  }
+  .picker{
+    pointer-events:auto;background:var(--panel);border-radius:18px;padding:10px 12px;
+    box-shadow:0 10px 26px rgba(0,0,0,.5), inset 0 0 0 1px rgba(90,230,220,.18);
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  }
+  .picker .lbl{font-size:10px;letter-spacing:.28em;color:#59b9c8;font-weight:800;margin-bottom:7px;}
+  .chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin;}
+  .chips::-webkit-scrollbar{height:5px;}
+  .chips::-webkit-scrollbar-thumb{background:#1c6f7c;border-radius:4px;}
+  .chip{
+    flex:0 0 auto;border:none;border-radius:13px;padding:9px 13px;font-family:inherit;font-weight:800;font-size:12px;
+    letter-spacing:.05em;color:#bfeef7;background:rgba(255,255,255,.07);
+    box-shadow:inset 0 0 0 2px rgba(120,220,220,.18);cursor:pointer;transition:.14s;white-space:nowrap;
+    display:flex;align-items:center;gap:7px;
+  }
+  .chip .dot{width:11px;height:11px;border-radius:50%;box-shadow:0 0 8px currentColor;}
+  .chip.on{background:linear-gradient(180deg,#2ce0c8,#0d9d94);color:#03242a;box-shadow:0 4px 0 #0a6a67,inset 0 2px 0 rgba(255,255,255,.5);}
+  .chip:active{transform:translateY(2px);}
+
+  .swatches{display:flex;gap:9px;flex-wrap:wrap;}
+  .sw{width:32px;height:32px;border-radius:10px;cursor:pointer;border:none;box-shadow:inset 0 0 0 2px rgba(0,0,0,.35),0 3px 8px rgba(0,0,0,.4);transition:.14s;}
+  .sw.on{box-shadow:0 0 0 3px #fff, 0 0 16px rgba(255,255,255,.7);transform:scale(1.08);}
+  .sw:active{transform:scale(.94);}
+
+  .row2{display:flex;gap:10px;align-items:center;}
+  .row2 .picker{flex:1;min-width:0;}
+  .startbar{pointer-events:auto;display:flex;gap:10px;align-items:center;justify-content:center;padding-top:2px;}
+  .stats{display:flex;gap:10px;margin-top:8px;}
+  .stat{flex:1;font-size:9px;letter-spacing:.16em;color:#6fc4d2;font-weight:800;}
+  .stat i{display:block;height:6px;border-radius:5px;background:rgba(255,255,255,.12);margin-top:4px;overflow:hidden;}
+  .stat i b{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,#3df0d8,#37e07a);}
+
+  /* ---------------- HUD ---------------- */
+  #hud{position:fixed;inset:0;z-index:30;pointer-events:none;}
+  .hudbox{
+    position:absolute;background:var(--panel);border-radius:16px;padding:8px 14px;
+    box-shadow:0 8px 20px rgba(0,0,0,.45), inset 0 0 0 1px rgba(90,230,220,.2);
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  }
+  #hudTL{top:12px;left:12px;display:flex;gap:16px;align-items:center;}
+  #hudTL .big{font-size:22px;font-weight:900;letter-spacing:.04em;color:#8ff8e6;line-height:1;text-shadow:0 0 14px rgba(61,240,216,.6);}
+  #hudTL .cap{font-size:9px;letter-spacing:.26em;color:#57b1c0;font-weight:800;margin-top:3px;}
+  #hudTR{top:12px;right:12px;text-align:right;}
+  #hudTR .t{font-size:19px;font-weight:900;letter-spacing:.06em;color:#ffd76a;line-height:1;}
+  #hudTR .cap{font-size:9px;letter-spacing:.26em;color:#57b1c0;font-weight:800;margin-top:3px;}
+  #hudBR{right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));text-align:right;min-width:118px;}
+  #hudBR .spd{font-size:38px;font-weight:900;line-height:.9;color:#fff;text-shadow:0 0 20px rgba(61,240,216,.75);font-variant-numeric:tabular-nums;}
+  #hudBR .unit{font-size:10px;letter-spacing:.3em;color:#57b1c0;font-weight:800;margin-top:2px;}
+  #speedbar{height:7px;border-radius:6px;background:rgba(255,255,255,.12);margin-top:7px;overflow:hidden;}
+  #speedbar b{display:block;height:100%;width:0%;border-radius:6px;background:linear-gradient(90deg,#37e07a,#3df0d8,#ffb020,#ff3d7f);transition:width .08s linear;}
+
+  #hudBL{left:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));display:flex;gap:10px;align-items:center;}
+  #itemSlot{
+    width:62px;height:62px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:26px;
+    background:linear-gradient(180deg,rgba(61,240,216,.22),rgba(10,60,70,.9));
+    box-shadow:0 6px 18px rgba(0,0,0,.5), inset 0 0 0 2px rgba(120,240,230,.4);
+    transition:transform .15s;
+  }
+  #itemSlot.full{animation:itemPulse 1.1s ease-in-out infinite;}
+  @keyframes itemPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.09);}}
+  #turboWrap{min-width:110px;}
+  #turboWrap .cap{font-size:9px;letter-spacing:.26em;color:#57b1c0;font-weight:800;margin-bottom:5px;}
+  #turboBar{height:9px;border-radius:6px;background:rgba(255,255,255,.12);overflow:hidden;box-shadow:inset 0 2px 5px rgba(0,0,0,.5);}
+  #turboBar b{display:block;height:100%;width:0%;border-radius:6px;background:linear-gradient(90deg,#ffb020,#ff3d7f);transition:width .1s linear;}
+
+  #center{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    flex-direction:column;pointer-events:none;
+  }
+  #countdown{
+    font-size:clamp(70px,20vw,190px);font-weight:900;color:#fff;letter-spacing:.04em;
+    text-shadow:0 0 40px rgba(61,240,216,.9),0 10px 0 #0a5a63;opacity:0;transform:scale(1.6);
+    transition:opacity .12s, transform .12s;
+  }
+  #countdown.pop{opacity:1;transform:scale(1);}
+  #bigmsg{
+    position:absolute;top:22%;font-size:clamp(18px,4.5vw,34px);font-weight:900;letter-spacing:.14em;
+    color:#ffd76a;text-shadow:0 0 26px rgba(255,176,32,.8),0 5px 0 #7a4a00;opacity:0;transition:opacity .3s;
+    text-align:center;padding:0 20px;
+  }
+  #bigmsg.show{opacity:1;}
+
+  /* ---------------- touch controls ---------------- */
+  #touch{position:fixed;inset:0;z-index:35;pointer-events:none;}
+  .tbtn{
+    position:absolute;pointer-events:auto;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-weight:900;font-size:13px;letter-spacing:.06em;color:#eafcff;
+    background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.28),rgba(12,70,84,.72) 65%);
+    box-shadow:0 6px 16px rgba(0,0,0,.5), inset 0 0 0 2px rgba(140,245,235,.42);
+    backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+    transition:transform .06s, background .06s;touch-action:none;
+  }
+  .tbtn.act{transform:scale(.93);background:radial-gradient(circle at 35% 30%,rgba(140,255,240,.75),rgba(14,150,150,.85) 65%);}
+  #tLeft {left:14px;  bottom:calc(96px + env(safe-area-inset-bottom,0px));width:84px;height:84px;font-size:26px;}
+  #tRight{left:112px; bottom:calc(96px + env(safe-area-inset-bottom,0px));width:84px;height:84px;font-size:26px;}
+  #tGas  {right:14px; bottom:calc(96px + env(safe-area-inset-bottom,0px));width:92px;height:92px;
+          background:radial-gradient(circle at 35% 30%,rgba(255,235,150,.35),rgba(20,110,90,.75) 65%);
+          box-shadow:0 6px 16px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,220,120,.5);}
+  #tBrake{right:118px;bottom:calc(96px + env(safe-area-inset-bottom,0px));width:74px;height:74px;font-size:11px;
+          background:radial-gradient(circle at 35% 30%,rgba(255,150,150,.3),rgba(110,20,40,.75) 65%);
+          box-shadow:0 6px 16px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,120,140,.5);}
+  #tDrift{right:14px; bottom:calc(198px + env(safe-area-inset-bottom,0px));width:70px;height:70px;font-size:11px;
+          background:radial-gradient(circle at 35% 30%,rgba(200,170,255,.3),rgba(60,30,120,.75) 65%);
+          box-shadow:0 6px 16px rgba(0,0,0,.5), inset 0 0 0 2px rgba(190,150,255,.5);}
+  #tTurbo{right:96px; bottom:calc(198px + env(safe-area-inset-bottom,0px));width:70px;height:70px;font-size:11px;
+          background:radial-gradient(circle at 35% 30%,rgba(255,210,120,.35),rgba(150,70,10,.78) 65%);
+          box-shadow:0 6px 16px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,190,90,.55);}
+  #tItem {left:14px;  bottom:calc(198px + env(safe-area-inset-bottom,0px));width:70px;height:70px;font-size:22px;}
+
+  /* ---------------- results ---------------- */
+  #results{
+    position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;
+    background:radial-gradient(circle at 50% 30%,rgba(8,50,62,.93),rgba(3,16,22,.97) 70%);
+    backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+  }
+  .card{
+    width:min(560px,100%);background:var(--panel2);border-radius:24px;padding:22px;
+    box-shadow:0 24px 60px rgba(0,0,0,.7), inset 0 0 0 1px rgba(90,230,220,.22);
+    max-height:92vh;overflow:auto;
+  }
+  .card h2{
+    margin:0 0 4px;font-size:clamp(20px,5vw,30px);letter-spacing:.1em;color:#8ff8e6;
+    text-shadow:0 0 24px rgba(61,240,216,.6);text-align:center;
+  }
+  .card .sub{text-align:center;font-size:10px;letter-spacing:.34em;color:#57b1c0;font-weight:800;margin-bottom:16px;}
+  .rrow{
+    display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:14px;margin-bottom:7px;
+    background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px rgba(120,220,220,.12);
+  }
+  .rrow.me{background:linear-gradient(90deg,rgba(61,240,216,.22),rgba(61,240,216,.05));box-shadow:inset 0 0 0 2px rgba(61,240,216,.55);}
+  .rrow .pos{width:26px;font-size:17px;font-weight:900;color:#ffd76a;text-align:center;}
+  .rrow .nm{flex:1;font-weight:800;font-size:14px;letter-spacing:.04em;}
+  .rrow .tm{font-size:13px;font-variant-numeric:tabular-nums;color:#9fe3ee;font-weight:700;}
+  .actions{display:flex;gap:10px;margin-top:16px;}
+  .actions .btn{flex:1;}
+  @media (max-width:520px){
+    .actions{flex-direction:column;}
+    #hudBR .spd{font-size:30px;}
+    #hudTL .big{font-size:18px;}
+  }
+</style>
+</head>
+<body>
+<canvas id="renderCanvas" touch-action="none"></canvas>
+
+<!-- ================= LOADING ================= -->
+<div id="loading">
+  <h1>HEYGAMMER</h1>
+  <h2>TROPICAL KART RACING 3D</h2>
+  <div class="bar"><i id="loadBar"></i></div>
+  <div id="loadTxt">BOOTING ENGINE…</div>
+</div>
+
+<!-- ================= MENU / GARAGE ================= -->
+<div id="menu" class="hidden">
+  <div class="top">
+    <div class="brand">HEYGAMMER<span>·</span>KARTS<small>TROPICAL KART RACING 3D</small></div>
+    <button class="btn ghost small" id="btnSound">🔊 SOUND</button>
+  </div>
+
+  <div class="bottom">
+    <div class="picker">
+      <div class="lbl">RACER</div>
+      <div class="chips" id="charChips"></div>
+      <div class="stats" id="charStats"></div>
+    </div>
+
+    <div class="row2">
+      <div class="picker" style="flex:1.4">
+        <div class="lbl">KART</div>
+        <div class="chips" id="kartChips"></div>
+      </div>
+      <div class="picker" style="flex:1">
+        <div class="lbl">PAINT</div>
+        <div class="swatches" id="paintSw"></div>
+      </div>
+    </div>
+
+    <div class="picker">
+      <div class="lbl">MODE</div>
+      <div class="chips" id="modeChips"></div>
+    </div>
+
+    <div class="startbar">
+      <button class="btn alt" id="btnStart">▶ START RACE</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= HUD ================= -->
+<div id="hud" class="hidden">
+  <div class="hudbox" id="hudTL">
+    <div>
+      <div class="big" id="lapTxt">1/3</div>
+      <div class="cap">LAP</div>
+    </div>
+    <div>
+      <div class="big" id="posTxt">1/4</div>
+      <div class="cap">POSITION</div>
+    </div>
+  </div>
+
+  <div class="hudbox" id="hudTR">
+    <div class="t" id="timeTxt">0:00.00</div>
+    <div class="cap" id="lapTimeTxt">BEST --:--</div>
+  </div>
+
+  <div class="hudbox" id="hudBR">
+    <div class="spd" id="spdTxt">0</div>
+    <div class="unit">KM/H</div>
+    <div id="speedbar"><b id="speedFill"></b></div>
+  </div>
+
+  <div id="hudBL">
+    <div id="itemSlot">—</div>
+    <div id="turboWrap">
+      <div class="cap">TURBO</div>
+      <div id="turboBar"><b id="turboFill"></b></div>
+    </div>
+  </div>
+
+  <div id="center">
+    <div id="countdown"></div>
+  </div>
+  <div id="bigmsg"></div>
+</div>
+
+<!-- ================= TOUCH ================= -->
+<div id="touch" class="hidden">
+  <div class="tbtn" id="tLeft">◀</div>
+  <div class="tbtn" id="tRight">▶</div>
+  <div class="tbtn" id="tGas">GAS</div>
+  <div class="tbtn" id="tBrake">BRAKE</div>
+  <div class="tbtn" id="tDrift">DRIFT</div>
+  <div class="tbtn" id="tTurbo">TURBO</div>
+  <div class="tbtn" id="tItem">🎁</div>
+</div>
+
+<!-- ================= RESULTS ================= -->
+<div id="results" class="hidden">
+  <div class="card">
+    <h2 id="resTitle">RACE RESULTS</h2>
+    <div class="sub" id="resSub">TROPICAL PARADISE</div>
+    <div id="resList"></div>
+    <div class="actions">
+      <button class="btn" id="btnAgain">↻ RACE AGAIN</button>
+      <button class="btn ghost" id="btnMenu">GARAGE</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script type="module">
+/* =============================================================================
+   HEYGAMMER — TROPICAL KART RACING 3D
+   Original game. Babylon.js. WebGPU first, WebGL2 fallback.
+   ============================================================================= */
+
+const canvas   = document.getElementById('renderCanvas');
+const $        = (id) => document.getElementById(id);
+const isTouch  = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+const isMobile = /Android|iPhone|iPad|iPod|Mobile|Silk/i.test(navigator.userAgent) || (isTouch && window.innerWidth < 1100);
+
+let engine, scene, cam, sunLight, shadowGen, glowLayer;
+let LOWQ = isMobile;
+
+/* ------------------------------------------------------------------ */
+/*  ENGINE BOOTSTRAP                                                   */
+/* ------------------------------------------------------------------ */
+async function createEngine() {
+  if (BABYLON.WebGPUEngine && navigator.gpu) {
+    try {
+      const e = new BABYLON.WebGPUEngine(canvas, { antialias: true, stencil: true });
+      await e.initAsync();
+      console.log('[HEYGAMMER] WebGPU engine active');
+      return e;
+    } catch (err) {
+      console.warn('[HEYGAMMER] WebGPU unavailable → WebGL2 fallback', err);
+    }
+  }
+  const e = new BABYLON.Engine(canvas, true, {
+    stencil: true, preserveDrawingBuffer: false, powerPreference: 'high-performance'
+  });
+  console.log('[HEYGAMMER] WebGL2 engine active');
+  return e;
+}
+
+/* ------------------------------------------------------------------ */
+/*  MATERIAL CACHE                                                     */
+/* ------------------------------------------------------------------ */
+const MATS = new Map();
+function mat(name, hex, opts = {}) {
+  const key = name + '|' + hex + '|' + JSON.stringify(opts);
+  if (MATS.has(key)) return MATS.get(key);
+  const m = new BABYLON.StandardMaterial(name, scene);
+  m.diffuseColor = BABYLON.Color3.FromHexString(hex);
+  const s = opts.spec !== undefined ? opts.spec : 0.28;
+  m.specularColor = new BABYLON.Color3(s, s, s);
+  m.specularPower = opts.gloss !== undefined ? opts.gloss : 46;
+  if (opts.emissive) m.emissiveColor = BABYLON.Color3.FromHexString(opts.emissive);
+  if (opts.alpha !== undefined) { m.alpha = opts.alpha; m.needDepthPrePass = opts.alpha < 1; }
+  if (opts.unlit) { m.disableLighting = true; m.emissiveColor = BABYLON.Color3.FromHexString(hex); }
+  if (opts.noCull) m.backFaceCulling = false;
+  if (opts.freeze) m.freeze();
+  MATS.set(key, m);
+  return m;
+}
+
+/* ------------------------------------------------------------------ */
+/*  SMALL GEOMETRY HELPERS                                             */
+/* ------------------------------------------------------------------ */
+function sphere(name, d, pos, scale, material, parent, seg) {
+  const m = BABYLON.MeshBuilder.CreateSphere(name,
+    { diameter: d, segments: seg || (LOWQ ? 10 : 18) }, scene);
+  if (scale) m.scaling.set(scale[0], scale[1], scale[2]);
+  if (pos) m.position.set(pos[0], pos[1], pos[2]);
+  m.material = material;
+  if (parent) m.parent = parent;
+  return m;
+}
+function capsule(name, height, radius, pos, material, parent, tess) {
+  const m = BABYLON.MeshBuilder.CreateCapsule(name,
+    { height, radius, tessellation: tess || (LOWQ ? 8 : 14), capSubdivisions: 4, subdivisions: 1 }, scene);
+  if (pos) m.position.set(pos[0], pos[1], pos[2]);
+  m.material = material;
+  if (parent) m.parent = parent;
+  return m;
+}
+function cyl(name, h, dTop, dBot, pos, material, parent, tess) {
+  const m = BABYLON.MeshBuilder.CreateCylinder(name,
+    { height: h, diameterTop: dTop, diameterBottom: dBot, tessellation: tess || (LOWQ ? 10 : 18) }, scene);
+  if (pos) m.position.set(pos[0], pos[1], pos[2]);
+  m.material = material;
+  if (parent) m.parent = parent;
+  return m;
+}
+function torus(name, dia, thick, pos, material, parent, tess) {
+  const m = BABYLON.MeshBuilder.CreateTorus(name,
+    { diameter: dia, thickness: thick, tessellation: tess || (LOWQ ? 12 : 24) }, scene);
+  if (pos) m.position.set(pos[0], pos[1], pos[2]);
+  m.material = material;
+  if (parent) m.parent = parent;
+  return m;
+}
+/** Orient a mesh whose local +Y axis should point along `dir`. */
+function orientY(mesh, dir) {
+  const d = dir.clone().normalize();
+  const dot = BABYLON.Vector3.Dot(BABYLON.Axis.Y, d);
+  if (dot > 0.99999) return;
+  if (dot < -0.99999) { mesh.rotation.z = Math.PI; return; }
+  const axis = BABYLON.Vector3.Cross(BABYLON.Axis.Y, d).normalize();
+  mesh.rotationQuaternion = BABYLON.Quaternion.RotationAxis(axis, Math.acos(Math.max(-1, Math.min(1, dot))));
+}
+/** Rounded limb (capsule) between two local points. */
+function limb(name, a, b, radius, material, parent) {
+  const A = new BABYLON.Vector3(a[0], a[1], a[2]);
+  const B = new BABYLON.Vector3(b[0], b[1], b[2]);
+  const dir = B.subtract(A);
+  const len = dir.length();
+  const m = BABYLON.MeshBuilder.CreateCapsule(name,
+    { height: len + radius * 1.6, radius, tessellation: LOWQ ? 8 : 14, capSubdivisions: 4, subdivisions: 1 }, scene);
+  m.position.copyFrom(A.add(B).scale(0.5));
+  orientY(m, dir);
+  m.material = material;
+  m.parent = parent;
+  return m;
+}
+
+/* ------------------------------------------------------------------ */
+/*  GAME DATA                                                          */
+/* ------------------------------------------------------------------ */
+const CHARACTERS = [
+  { id:'max',  name:'MAX',  species:'human',   skin:'#f7c9a3', skin2:'#ffe0c4', hair:'#4a2b1a',
+    outfit:'#e8384f', accent:'#ffd23f', helmet:'#ff2e63', eye:'#2b6fd6',
+    tag:'Adventurous human racer', stats:{ spd:4, acc:4, hnd:4, tur:4 } },
+  { id:'kiko', name:'KIKO', species:'monkey',  skin:'#b06a3a', skin2:'#e8b98c', hair:'#3a2418',
+    outfit:'#22c55e', accent:'#fde047', helmet:'#00b894', eye:'#5b3a1a',
+    tag:'Funny tropical monkey', stats:{ spd:3, acc:5, hnd:4, tur:5 } },
+  { id:'bobo', name:'BOBO', species:'panda',   skin:'#f7f7f7', skin2:'#ffffff', hair:'#22252b',
+    outfit:'#3b82f6', accent:'#f9a8d4', helmet:'#2563eb', eye:'#111318',
+    tag:'Cute round panda', stats:{ spd:5, acc:3, hnd:3, tur:3 } },
+  { id:'riko', name:'RIKO', species:'fox',     skin:'#f09030', skin2:'#fff4e2', hair:'#c2571a',
+    outfit:'#a855f7', accent:'#fbbf24', helmet:'#7c3aed', eye:'#3ea35a',
+    tag:'Energetic fox', stats:{ spd:4, acc:4, hnd:5, tur:4 } },
+  { id:'taro', name:'TARO', species:'turtle',  skin:'#7ac74f', skin2:'#a8e07a', hair:'#3d7a22',
+    outfit:'#0891b2', accent:'#fbbf24', helmet:'#0e7490', eye:'#1d3b0a',
+    tag:'Friendly turtle', stats:{ spd:3, acc:3, hnd:5, tur:5 } },
+  { id:'zuzu', name:'ZUZU', species:'raccoon', skin:'#b8c3cc', skin2:'#e8eef3', hair:'#3a3f47',
+    outfit:'#f97316', accent:'#38bdf8', helmet:'#ea580c', eye:'#2b3440',
+    tag:'Playful raccoon', stats:{ spd:4, acc:5, hnd:3, tur:4 } },
+];
+
+const KARTS = [
+  { id:'k1', name:'CORAL COMET',  body:'#ff4d6d', accent:'#ffe066', wheel:'#1b1e25', rim:'#d7e3ea',
+    stats:{ speed:32, accel:19, turn:2.45, drift:1.0 } },
+  { id:'k2', name:'LAGOON BLAZE', body:'#22d3ee', accent:'#ffd166', wheel:'#1b1e25', rim:'#e8f4f8',
+    stats:{ speed:34, accel:17, turn:2.30, drift:1.0 } },
+  { id:'k3', name:'PALM VIPER',   body:'#34d399', accent:'#f472b6', wheel:'#1b1e25', rim:'#dfeef0',
+    stats:{ speed:31, accel:21, turn:2.60, drift:1.05 } },
+  { id:'k4', name:'SUNSET FANG',  body:'#f59e0b', accent:'#ef4444', wheel:'#1b1e25', rim:'#f2e6cf',
+    stats:{ speed:33, accel:18, turn:2.42, drift:1.0 } },
+  { id:'k5', name:'TIKI STORM',   body:'#a855f7', accent:'#22d3ee', wheel:'#1b1e25', rim:'#e6dcf7',
+    stats:{ speed:35, accel:16, turn:2.28, drift:0.95 } },
+  { id:'k6', name:'REEF RUNNER',  body:'#f43f5e', accent:'#38bdf8', wheel:'#1b1e25', rim:'#ffe0e6',
+    stats:{ speed:30, accel:22, turn:2.66, drift:1.05 } },
+];
+
+const PAINTS = ['#ff4d6d','#22d3ee','#34d399','#f59e0b','#a855f7','#f43f5e','#facc15','#0ea5e9','#fb7185','#e5e7eb'];
+
+const MODES = [
+  { id:'quick',   name:'QUICK RACE',   laps:3, ai:3, desc:'3 laps · 4 racers' },
+  { id:'champ',   name:'CHAMPIONSHIP', laps:2, ai:3, desc:'3 races · points' },
+  { id:'trial',   name:'TIME TRIAL',   laps:3, ai:0, desc:'solo · best lap' },
+  { id:'practice',name:'PRACTICE',     laps:99,ai:0, desc:'free drive' },
+];
+
+const Game = {
+  state: 'boot',
+  mode: 'quick',
+  charIndex: 0,
+  kartIndex: 0,
+  paint: null,
+  laps: 3,
+  karts: [],
+  player: null,
+  raceTime: 0,
+  countdown: 0,
+  raceIndex: 0,
+  points: {},
+  soundOn: true,
+};
+
+/* ------------------------------------------------------------------ */
+/*  TRACK DEFINITION                                                   */
+/* ------------------------------------------------------------------ */
+const TRACK = {
+  n: 420,
+  halfWidth: 8.5,
+  samples: [],   // {pos, tangent, left, cum}
+  length: 0,
+  segLen: 0,
+};
+
+function buildTrackSamples() {
+  const n = TRACK.n;
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const r = 132 + 34 * Math.sin(2 * a) + 18 * Math.sin(3 * a + 1.2) + 8 * Math.sin(5 * a + 0.4);
+    pts.push(new BABYLON.Vector3(Math.cos(a) * r * 1.24, 0, Math.sin(a) * r * 0.94));
+  }
+  let cum = 0;
+  for (let i = 0; i < n; i++) {
+    const p0 = pts[(i - 1 + n) % n], p1 = pts[(i + 1) % n];
+    const t = p1.subtract(p0); t.y = 0; t.normalize();
+    const left = new BABYLON.Vector3(t.z, 0, -t.x);
+    if (i > 0) cum += BABYLON.Vector3.Distance(pts[i], pts[i - 1]);
+    TRACK.samples.push({ pos: pts[i], tangent: t, left, cum });
+  }
+  TRACK.length = cum + BABYLON.Vector3.Distance(pts[n - 1], pts[0]);
+  TRACK.segLen = TRACK.length / n;
+}
+
+/* ------------------------------------------------------------------ */
+/*  WORLD BUILD                                                        */
+/* ------------------------------------------------------------------ */
+let worldRoot, garageRoot, garageTurntable, garageKart = null, garageChar = null;
+let itemBoxes = [];
+let bananas = [];
+
+function buildWorld() {
+  worldRoot = new BABYLON.TransformNode('world', scene);
+
+  /* ---- SKY ---- */
+  const skyTex = new BABYLON.DynamicTexture('skyTex', { width: 32, height: 256 }, scene, false);
+  const sctx = skyTex.getContext();
+  const grd = sctx.createLinearGradient(0, 0, 0, 256);
+  grd.addColorStop(0.00, '#083a5c');
+  grd.addColorStop(0.35, '#1a86b8');
+  grd.addColorStop(0.62, '#63c8e8');
+  grd.addColorStop(0.82, '#bfeaf5');
+  grd.addColorStop(1.00, '#ffe6b8');
+  sctx.fillStyle = grd; sctx.fillRect(0, 0, 32, 256);
+  skyTex.update();
+
+  const sky = BABYLON.MeshBuilder.CreateSphere('sky', { diameter: 2600, segments: 24, sideOrientation: BABYLON.Mesh.BACKSIDE }, scene);
+  const skyMat = new BABYLON.StandardMaterial('skyMat', scene);
+  skyMat.emissiveTexture = skyTex;
+  skyMat.disableLighting = true;
+  skyMat.backFaceCulling = false;
+  sky.material = skyMat;
+  sky.infiniteDistance = true;
+  sky.applyFog = false;
+  sky.parent = worldRoot;
+
+  /* ---- OCEAN ---- */
+  const oceanTex = new BABYLON.DynamicTexture('oceanTex', { width: 256, height: 256 }, scene, false);
+  const octx = oceanTex.getContext();
+  octx.fillStyle = '#0d6f9e'; octx.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 260; i++) {
+    octx.globalAlpha = 0.06 + Math.random() * 0.14;
+    octx.fillStyle = Math.random() > 0.5 ? '#5fd8f0' : '#084c74';
+    const y = Math.random() * 256;
+    octx.fillRect(Math.random() * 256, y, 10 + Math.random() * 60, 1 + Math.random() * 2.5);
+  }
+  octx.globalAlpha = 1;
+  oceanTex.update();
+  oceanTex.uScale = 22; oceanTex.vScale = 22;
+
+  const ocean = BABYLON.MeshBuilder.CreateGround('ocean', { width: 4200, height: 4200, subdivisions: 1 }, scene);
+  ocean.position.y = -2.2;
+  const oceanMat = new BABYLON.StandardMaterial('oceanMat', scene);
+  oceanMat.diffuseTexture = oceanTex;
+  oceanMat.diffuseColor = new BABYLON.Color3(0.55, 0.85, 1.0);
+  oceanMat.specularColor = new BABYLON.Color3(0.9, 0.95, 1.0);
+  oceanMat.specularPower = 180;
+  oceanMat.emissiveColor = new BABYLON.Color3(0.02, 0.09, 0.15);
+  ocean.material = oceanMat;
+  ocean.parent = worldRoot;
+  ocean.isPickable = false;
+
+  /* ---- ISLAND ---- */
+  const islandTex = new BABYLON.DynamicTexture('islandTex', { width: 512, height: 512 }, scene, false);
+  const ictx = islandTex.getContext();
+  ictx.fillStyle = '#efd9a4'; ictx.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 130; i++) {
+    ictx.globalAlpha = 0.10 + Math.random() * 0.22;
+    ictx.fillStyle = ['#78b356', '#5d9a45', '#96c46a', '#cbe08e'][(Math.random() * 4) | 0];
+    ictx.beginPath();
+    ictx.ellipse(Math.random() * 512, Math.random() * 512, 12 + Math.random() * 62, 10 + Math.random() * 50, Math.random() * 6, 0, 6.3);
+    ictx.fill();
+  }
+  ictx.globalAlpha = 1;
+  islandTex.update();
+  islandTex.uScale = 3; islandTex.vScale = 3;
+
+  const island = cyl('island', 3.2, 900, 940, [0, -1.6, 0], null, worldRoot, 64);
+  const islandMat = new BABYLON.StandardMaterial('islandMat', scene);
+  islandMat.diffuseTexture = islandTex;
+  islandMat.specularColor = new BABYLON.Color3(0.06, 0.06, 0.06);
+  island.material = islandMat;
+  island.isPickable = false;
+  island.receiveShadows = true;
+
+  /* ---- ROAD ---- */
+  buildTrackSamples();
+  const road = ribbonBand(TRACK.halfWidth, -TRACK.halfWidth, 0.06, 'road');
+  const roadMat = new BABYLON.StandardMaterial('roadMat', scene);
+  const roadTex = new BABYLON.DynamicTexture('roadTex', { width: 128, height: 128 }, scene, false);
+  const rctx = roadTex.getContext();
+  rctx.fillStyle = '#3a4550'; rctx.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 900; i++) {
+    rctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,.045)' : 'rgba(0,0,0,.09)';
+    rctx.fillRect(Math.random() * 128, Math.random() * 128, 1 + Math.random() * 2, 1 + Math.random() * 2);
+  }
+  roadTex.update();
+  roadTex.uScale = 3; roadTex.vScale = 90;
+  roadMat.diffuseTexture = roadTex;
+  roadMat.specularColor = new BABYLON.Color3(0.10, 0.11, 0.13);
+  roadMat.specularPower = 70;
+  roadMat.backFaceCulling = false;
+  road.material = roadMat;
+  road.receiveShadows = true;
+  road.parent = worldRoot;
+
+  // edge stripes
+  const stripeMatW = mat('stripeW', '#f3f7f8', { spec: 0.15, noCull: true });
+  ribbonBand(TRACK.halfWidth - 0.35, TRACK.halfWidth - 1.25, 0.09, 'stripeL').material = stripeMatW;
+  ribbonBand(-TRACK.halfWidth + 1.25, -TRACK.halfWidth + 0.35, 0.09, 'stripeR').material = stripeMatW;
+  scene.getMeshByName('stripeL').parent = worldRoot;
+  scene.getMeshByName('stripeR').parent = worldRoot;
+
+  // red/white kerb just outside
+  const kerbMatA = mat('kerbA', '#e63946', { spec: 0.15, noCull: true });
+  const kerbMatB = mat('kerbB', '#f7f7f7', { spec: 0.15, noCull: true });
+  const kerbL = ribbonBand(TRACK.halfWidth

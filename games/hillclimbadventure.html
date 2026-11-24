@@ -1,0 +1,1877 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HEYGAMMER — HILL CLIMB ADVENTURE</title>
+    <!-- Babylon.js Engine & Tone.js Audio Synthesizer -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Chakra+Petch:ital,wght@0,600;0,700;1,700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #090d16;
+            font-family: 'Chakra Petch', sans-serif;
+        }
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            outline: none;
+        }
+        .font-display {
+            font-family: 'Black Ops One', cursive;
+            letter-spacing: 1.5px;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 2px solid rgba(56, 189, 248, 0.35);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
+        }
+        .btn-action {
+            transition: transform 0.1s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.15s;
+        }
+        .btn-action:active {
+            transform: scale(0.94);
+        }
+        /* Pedal Kontrol Mobile & Desktop */
+        .pedal-btn {
+            transition: transform 0.08s ease, box-shadow 0.08s ease;
+            box-shadow: 0 8px 0 rgba(0,0,0,0.6), 0 12px 24px rgba(0,0,0,0.5);
+        }
+        .pedal-btn.pressed, .pedal-btn:active {
+            transform: translateY(6px) scale(0.96);
+            box-shadow: 0 2px 0 rgba(0,0,0,0.6), 0 4px 10px rgba(0,0,0,0.4);
+        }
+        /* Custom Scrollbar untuk Garasi */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.5); border-radius: 8px; }
+        ::-webkit-scrollbar-thumb { background: #38bdf8; border-radius: 8px; }
+    </style>
+</head>
+<body class="text-white">
+
+    <!-- WebGL 2 Canvas -->
+    <canvas id="renderCanvas"></canvas>
+
+    <!-- HUD IN-GAME (Tampil saat bermain) -->
+    <div id="hudLayer" class="fixed inset-0 pointer-events-none hidden flex-col justify-between p-3 sm:p-5 z-10">
+        <!-- Top Bar -->
+        <div class="flex items-start justify-between w-full gap-2">
+            <!-- Kiri: Bensin & Koin -->
+            <div class="flex flex-col gap-2">
+                <!-- Fuel Gauge -->
+                <div class="glass-panel rounded-2xl p-2.5 sm:p-3 flex items-center gap-3 w-48 sm:w-64">
+                    <div class="w-8 h-8 rounded-xl bg-red-500/20 border border-red-500 flex items-center justify-center text-red-400 font-bold text-sm shrink-0">
+                        FUEL
+                    </div>
+                    <div class="w-full">
+                        <div class="flex justify-between text-xs font-bold mb-1">
+                            <span id="fuelAlert" class="text-slate-300">BAHAN BAKAR</span>
+                            <span id="fuelPercentText" class="text-emerald-400">100%</span>
+                        </div>
+                        <div class="w-full h-3.5 bg-slate-900 rounded-full overflow-hidden border border-slate-700 p-0.5">
+                            <div id="fuelBarFill" class="h-full bg-gradient-to-r from-red-500 via-amber-400 to-emerald-400 rounded-full transition-all duration-100" style="width: 100%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Coin Counter -->
+                <div class="glass-panel rounded-2xl px-3.5 py-2 flex items-center gap-2.5 w-fit">
+                    <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-300 border-2 border-amber-200 flex items-center justify-center text-slate-900 font-black text-xs shadow-inner">
+                        $
+                    </div>
+                    <span id="hudCoins" class="font-display text-lg sm:text-xl text-yellow-400">0</span>
+                </div>
+            </div>
+
+            <!-- Tengah: Distance & RPM/Speed -->
+            <div class="glass-panel rounded-2xl px-4 py-2 sm:px-6 sm:py-2.5 text-center">
+                <div class="text-[10px] sm:text-xs text-sky-400 font-bold tracking-widest uppercase" id="hudLevelName">GREEN HILLS</div>
+                <div class="font-display text-2xl sm:text-3xl text-white">
+                    <span id="hudDistance">0</span><span class="text-sm sm:text-base text-slate-400 ml-1">m</span>
+                </div>
+                <div class="text-[11px] text-slate-400 font-bold">REKOR: <span id="hudBestDist" class="text-amber-400">0</span>m</div>
+            </div>
+
+            <!-- Kanan: Tombol Pause -->
+            <button id="btnPause" class="pointer-events-auto glass-panel btn-action rounded-2xl w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center hover:border-sky-400 cursor-pointer">
+                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Bottom Controls: BRAKE (Kiri Bawah) & GAS (Kanan Bawah) -->
+        <div class="flex items-end justify-between w-full pb-1 sm:pb-3 px-1 sm:px-4">
+            <!-- BRAKE PEDAL -->
+            <button id="btnBrake" class="pointer-events-auto pedal-btn w-24 h-24 sm:w-32 sm:h-28 rounded-3xl bg-gradient-to-b from-rose-500 to-red-700 border-4 border-rose-300/60 flex flex-col items-center justify-center cursor-pointer">
+                <span class="font-display text-lg sm:text-2xl text-white drop-shadow">BRAKE</span>
+                <span class="text-[10px] sm:text-xs text-rose-200 font-bold mt-0.5">[ ◀ / A ]</span>
+            </button>
+
+            <!-- Indikator Stunt / Air Time -->
+            <div id="stuntToast" class="opacity-0 transition-opacity duration-300 glass-panel px-4 py-1.5 rounded-full border-amber-400 text-amber-300 font-display text-sm sm:text-lg mb-4">
+                AIR TIME +50!
+            </div>
+
+            <!-- GAS PEDAL -->
+            <button id="btnGas" class="pointer-events-auto pedal-btn w-24 h-24 sm:w-32 sm:h-28 rounded-3xl bg-gradient-to-b from-emerald-400 to-emerald-700 border-4 border-emerald-200/60 flex flex-col items-center justify-center cursor-pointer">
+                <span class="font-display text-lg sm:text-2xl text-white drop-shadow">GAS</span>
+                <span class="text-[10px] sm:text-xs text-emerald-100 font-bold mt-0.5">[ ▶ / D ]</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN MENU & GARAGE OVERLAY -->
+    <div id="menuLayer" class="fixed inset-0 bg-slate-950/75 backdrop-blur-sm flex flex-col justify-between p-3 sm:p-6 z-20 overflow-y-auto">
+        <!-- Header Brand & Total Coins -->
+        <div class="flex flex-wrap items-center justify-between gap-3 max-w-6xl w-full mx-auto">
+            <div>
+                <div class="inline-block px-2.5 py-0.5 rounded-md bg-sky-500/20 border border-sky-400/40 text-sky-300 text-xs font-bold tracking-widest mb-1">
+                    2.5D PHYSICS OFF-ROAD RACING
+                </div>
+                <h1 class="font-display text-2xl sm:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-orange-400 to-rose-500 drop-shadow">
+                    HEYGAMMER — HILL CLIMB ADVENTURE
+                </h1>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <button id="btnSoundToggle" class="glass-panel btn-action px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold text-sky-300 cursor-pointer">
+                    🔊 AUDIO: ON
+                </button>
+                <div class="glass-panel rounded-2xl px-4 py-2 flex items-center gap-2.5 border-amber-400/50">
+                    <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-300 border-2 border-amber-100 flex items-center justify-center text-slate-950 font-black text-sm">
+                        $
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-slate-400 font-bold leading-none">TOTAL KOIN</div>
+                        <div id="menuTotalCoins" class="font-display text-xl text-yellow-400 leading-tight">1000</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle Interactive Tabs: GARAGE (Vehicle & Upgrades) + LEVEL SELECTION -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 max-w-6xl w-full mx-auto my-auto py-3">
+            
+            <!-- Kolom Kiri (7 cols): Pilih Kendaraan & Upgrade Shop -->
+            <div class="lg:col-span-7 glass-panel rounded-3xl p-4 sm:p-5 flex flex-col gap-4">
+                <div class="flex items-center justify-between border-b border-slate-700/80 pb-2.5">
+                    <h2 class="font-display text-lg sm:text-xl text-sky-400 flex items-center gap-2">
+                        <span>GARASI & BENGKEL UPGRADE</span>
+                    </h2>
+                    <span id="selectedVehicleBadge" class="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                        TERPILIH
+                    </span>
+                </div>
+
+                <!-- 4 Pilihan Kendaraan -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5" id="vehicleGrid">
+                    <!-- Diisi secara dinamis oleh JS -->
+                </div>
+
+                <!-- Info Kendaraan Terpilih -->
+                <div class="bg-slate-900/80 rounded-2xl p-3 border border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <div>
+                        <h3 id="vehDetailName" class="font-display text-lg text-white">Thunder Jeep</h3>
+                        <p id="vehDetailDesc" class="text-xs text-slate-400">Seimbang di segala medan dengan suspensi lincah.</p>
+                    </div>
+                    <div id="vehActionContainer">
+                        <!-- Tombol Beli Kendaraan jika terkunci -->
+                    </div>
+                </div>
+
+                <!-- 4 Upgrade System -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5" id="upgradeGrid">
+                    <!-- Engine, Suspension, Tire, Fuel Tank diisi dinamis -->
+                </div>
+            </div>
+
+            <!-- Kolom Kanan (5 cols): Pilih Level / Stage -->
+            <div class="lg:col-span-5 glass-panel rounded-3xl p-4 sm:p-5 flex flex-col justify-between gap-4">
+                <div>
+                    <div class="flex items-center justify-between border-b border-slate-700/80 pb-2.5 mb-3">
+                        <h2 class="font-display text-lg sm:text-xl text-amber-400">PILIH LINTASAN</h2>
+                        <span class="text-xs text-slate-400 font-bold">4 ARENA</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5" id="levelGrid">
+                        <!-- 4 Level diisi dinamis -->
+                    </div>
+                </div>
+
+                <!-- Tombol PLAY Utama -->
+                <button id="btnPlayGame" class="btn-action w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500 hover:brightness-110 border-2 border-white/40 shadow-lg shadow-emerald-950/60 font-display text-2xl text-white tracking-wider cursor-pointer flex items-center justify-center gap-3">
+                    <span>MULAI BALAPAN</span>
+                    <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Footer Kontrol Hint -->
+        <div class="text-center text-xs text-slate-400 font-semibold">
+            Kontrol Desktop: Panah Kanan / D (GAS) • Panah Kiri / A (BRAKE) • P / ESC (Pause) | Mobile: Tahan Pedal Layar Sentuh
+        </div>
+    </div>
+
+    <!-- PAUSE OVERLAY -->
+    <div id="pauseLayer" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md hidden items-center justify-center p-4 z-30">
+        <div class="glass-panel rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center flex flex-col gap-4">
+            <h2 class="font-display text-3xl text-sky-400">PERMAINAN DIJEDA</h2>
+            <p class="text-sm text-slate-300">Ambil napas sejenak sebelum menaklukkan bukit berikutnya!</p>
+            <button id="btnResume" class="btn-action w-full py-3.5 rounded-2xl bg-emerald-500 font-display text-xl text-white cursor-pointer">
+                LANJUTKAN
+            </button>
+            <button id="btnRestartFromPause" class="btn-action w-full py-3 rounded-2xl bg-amber-500 font-display text-lg text-slate-950 cursor-pointer">
+                ULANGI LINTASAN
+            </button>
+            <button id="btnMenuFromPause" class="btn-action w-full py-3 rounded-2xl bg-slate-700 font-display text-lg text-white cursor-pointer">
+                KE GARASI / MENU
+            </button>
+        </div>
+    </div>
+
+    <!-- GAME OVER OVERLAY -->
+    <div id="gameOverLayer" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md hidden items-center justify-center p-4 z-30">
+        <div class="glass-panel rounded-3xl p-6 sm:p-8 max-w-md w-full text-center border-rose-500/50 flex flex-col gap-4">
+            <div>
+                <div id="goReasonBadge" class="inline-block px-3 py-1 rounded-full bg-rose-500/20 border border-rose-500 text-rose-400 text-xs font-bold uppercase mb-2">
+                    KEHABISAN BENSIN!
+                </div>
+                <h2 class="font-display text-3xl sm:text-4xl text-white">GAME OVER</h2>
+            </div>
+
+            <div class="bg-slate-900/90 rounded-2xl p-4 border border-slate-800 flex flex-col gap-2.5">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                    <span class="text-slate-400 font-bold text-sm">JARAK TEMPUH</span>
+                    <span class="font-display text-2xl text-sky-400"><span id="goDistance">0</span> m</span>
+                </div>
+                <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                    <span class="text-slate-400 font-bold text-sm">REKOR TERBAIK</span>
+                    <span class="font-display text-xl text-amber-400"><span id="goBestDistance">0</span> m</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-400 font-bold text-sm">KOIN DIDAPAT</span>
+                    <span class="font-display text-2xl text-yellow-400">+<span id="goCoins">0</span></span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mt-1">
+                <button id="btnGoMenu" class="btn-action py-3.5 rounded-2xl bg-slate-700 hover:bg-slate-600 font-display text-lg text-white cursor-pointer">
+                    GARASI
+                </button>
+                <button id="btnGoRetry" class="btn-action py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 font-display text-lg text-white cursor-pointer">
+                    MAIN LAGI
+                </button>
+            </div>
+        </div>
+    </div>
+
+<script>
+/**
+ * ============================================================================
+ * HEYGAMMER — HILL CLIMB ADVENTURE
+ * Engine: Babylon.js (WebGL 2) + Custom 2.5D Vehicle & Suspension Physics
+ * ============================================================================
+ */
+
+// --- 1. DATA KONFIGURASI KENDARAAN, LEVEL & PENYIMPANAN ---
+const VEHICLES = [
+    {
+        id: 'thunder_jeep',
+        name: 'Thunder Jeep',
+        desc: 'Jeep off-road taktis yang lincah dan seimbang di semua bukit.',
+        price: 0,
+        color: '#ef4444', // Merah Racing
+        accent: '#facc15',
+        wheelRadius: 0.62,
+        wheelBase: 1.55,
+        chassisWidth: 3.3,
+        chassisHeight: 0.72,
+        basePower: 28,
+        baseGrip: 0.92,
+        baseSuspension: 115,
+        baseFuelCap: 100,
+        mass: 1.0,
+        bodyStyle: 'jeep'
+    },
+    {
+        id: 'monster_truck',
+        name: 'Monster Truck',
+        desc: 'Roda raksasa penghancur tanjakan ekstrem dengan suspensi tinggi.',
+        price: 1500,
+        color: '#3b82f6', // Biru Elektrik
+        accent: '#38bdf8',
+        wheelRadius: 0.92,
+        wheelBase: 1.75,
+        chassisWidth: 3.6,
+        chassisHeight: 0.85,
+        basePower: 34,
+        baseGrip: 1.08,
+        baseSuspension: 135,
+        baseFuelCap: 115,
+        mass: 1.25,
+        bodyStyle: 'monster'
+    },
+    {
+        id: 'desert_buggy',
+        name: 'Desert Buggy',
+        desc: 'Rangka tubular ringan berkecepatan tinggi dengan pusat gravitasi rendah.',
+        price: 3000,
+        color: '#f59e0b', // Oranye Gurun
+        accent: '#fef08a',
+        wheelRadius: 0.68,
+        wheelBase: 1.70,
+        chassisWidth: 3.4,
+        chassisHeight: 0.58,
+        basePower: 36,
+        baseGrip: 0.98,
+        baseSuspension: 125,
+        baseFuelCap: 105,
+        mass: 0.88,
+        bodyStyle: 'buggy'
+    },
+    {
+        id: 'super_pickup',
+        name: 'Super Pickup',
+        desc: 'Truk tangguh bermesin turbo V8 dengan tangki bahan bakar ekstra besar.',
+        price: 5000,
+        color: '#10b981', // Hijau Zamrud
+        accent: '#a7f3d0',
+        wheelRadius: 0.74,
+        wheelBase: 1.85,
+        chassisWidth: 3.8,
+        chassisHeight: 0.78,
+        basePower: 40,
+        baseGrip: 1.04,
+        baseSuspension: 130,
+        baseFuelCap: 140,
+        mass: 1.15,
+        bodyStyle: 'pickup'
+    }
+];
+
+const LEVELS = [
+    {
+        id: 'green_hills',
+        name: 'Green Hills',
+        desc: 'Perbukitan hijau klasik dengan tanjakan bergelombang.',
+        skyTop: '#0284c7',
+        skyBottom: '#bae6fd',
+        fogColor: new BABYLON.Color3(0.65, 0.86, 0.98),
+        groundTopColor: '#22c55e',
+        groundDirtColor: '#78350f',
+        mountainColor: new BABYLON.Color3(0.18, 0.42, 0.35),
+        gravity: -24,
+        friction: 0.98,
+        roughness: 1.0,
+        propType: 'tree'
+    },
+    {
+        id: 'desert_valley',
+        name: 'Desert Valley',
+        desc: 'Gurun pasir luas dengan bukit curam dan lompatan panjang.',
+        skyTop: '#ea580c',
+        skyBottom: '#fed7aa',
+        fogColor: new BABYLON.Color3(0.98, 0.78, 0.55),
+        groundTopColor: '#f59e0b',
+        groundDirtColor: '#9a3412',
+        mountainColor: new BABYLON.Color3(0.76, 0.38, 0.18),
+        gravity: -24,
+        friction: 0.94,
+        roughness: 1.25,
+        propType: 'cactus'
+    },
+    {
+        id: 'rocky_mountains',
+        name: 'Rocky Mountains',
+        desc: 'Pegunungan berbatu terjal yang menguji suspensi dan torsi.',
+        skyTop: '#334155',
+        skyBottom: '#94a3b8',
+        fogColor: new BABYLON.Color3(0.52, 0.58, 0.66),
+        groundTopColor: '#64748b',
+        groundDirtColor: '#334155',
+        mountainColor: new BABYLON.Color3(0.28, 0.32, 0.38),
+        gravity: -25,
+        friction: 1.02,
+        roughness: 1.55,
+        propType: 'rock'
+    },
+    {
+        id: 'snow_adventure',
+        name: 'Snow Adventure',
+        desc: 'Lintasan salju licin! Butuh ban dengan traksi maksimal.',
+        skyTop: '#1e3a8a',
+        skyBottom: '#e0f2fe',
+        fogColor: new BABYLON.Color3(0.82, 0.92, 0.99),
+        groundTopColor: '#f8fafc',
+        groundDirtColor: '#475569',
+        mountainColor: new BABYLON.Color3(0.55, 0.72, 0.88),
+        gravity: -23.5,
+        friction: 0.85,
+        roughness: 1.35,
+        propType: 'pine'
+    }
+];
+
+const UPGRADE_TYPES = [
+    { id: 'engine', name: 'Engine', icon: '⚡', desc: 'Torsi & Kecepatan' },
+    { id: 'suspension', name: 'Suspension', icon: '🔩', desc: 'Redam & Stabilitas' },
+    { id: 'tire', name: 'Tire', icon: '🛞', desc: 'Cengkeraman Tanah' },
+    { id: 'fuel', name: 'Fuel Tank', icon: '⛽', desc: 'Kapasitas Bensin' }
+];
+
+// State Tersimpan (LocalStorage)
+let saveData = {
+    coins: 1200,
+    unlockedVehicles: ['thunder_jeep'],
+    selectedVehicle: 'thunder_jeep',
+    selectedLevel: 'green_hills',
+    bestDistances: {
+        green_hills: 0,
+        desert_valley: 0,
+        rocky_mountains: 0,
+        snow_adventure: 0
+    },
+    upgrades: {
+        thunder_jeep: { engine: 1, suspension: 1, tire: 1, fuel: 1 },
+        monster_truck: { engine: 1, suspension: 1, tire: 1, fuel: 1 },
+        desert_buggy: { engine: 1, suspension: 1, tire: 1, fuel: 1 },
+        super_pickup: { engine: 1, suspension: 1, tire: 1, fuel: 1 }
+    }
+};
+
+function loadSaveData() {
+    try {
+        const raw = localStorage.getItem('heygammer_hca_save_v1');
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            saveData = { ...saveData, ...parsed };
+        }
+    } catch (e) {
+        console.warn('Gagal memuat save data:', e);
+    }
+}
+
+function persistSaveData() {
+    try {
+        localStorage.setItem('heygammer_hca_save_v1', JSON.stringify(saveData));
+    } catch (e) {}
+}
+
+// --- 2. SISTEM AUDIO SINTETIS (TONE.JS) ---
+const AudioEngine = {
+    enabled: true,
+    initialized: false,
+    coinSynth: null,
+    fuelSynth: null,
+    crashSynth: null,
+    engineOsc: null,
+    engineGain: null,
+
+    init() {
+        if (this.initialized) return;
+        try {
+            Tone.start();
+            this.coinSynth = new Tone.Synth({
+                oscillator: { type: 'triangle' },
+                envelope: { attack: 0.005, decay: 0.12, sustain: 0, release: 0.05 }
+            }).toDestination();
+            this.coinSynth.volume.value = -8;
+
+            this.fuelSynth = new Tone.PolySynth(Tone.Synth).toDestination();
+            this.fuelSynth.volume.value = -6;
+
+            this.crashSynth = new Tone.NoiseSynth({
+                noise: { type: 'brown' },
+                envelope: { attack: 0.01, decay: 0.35, sustain: 0 }
+            }).toDestination();
+            this.crashSynth.volume.value = -4;
+
+            // Suara Mesin Dinamis
+            this.engineGain = new Tone.Gain(0).toDestination();
+            this.engineOsc = new Tone.Oscillator(55, 'sawtooth').connect(this.engineGain);
+            this.engineOsc.start();
+
+            this.initialized = true;
+        } catch (e) {}
+    },
+
+    updateEngine(rpmRatio, isPlaying) {
+        if (!this.initialized || !this.enabled || !isPlaying) {
+            if (this.engineGain) this.engineGain.gain.rampTo(0, 0.1);
+            return;
+        }
+        const targetFreq = 48 + rpmRatio * 95;
+        this.engineOsc.frequency.rampTo(targetFreq, 0.08);
+        this.engineGain.gain.rampTo(0.045, 0.08);
+    },
+
+    playCoin() {
+        if (!this.initialized || !this.enabled) return;
+        const now = Tone.now();
+        this.coinSynth.triggerAttackRelease('E6', '32n', now);
+        this.coinSynth.triggerAttackRelease('B6', '16n', now + 0.05);
+    },
+
+    playFuel() {
+        if (!this.initialized || !this.enabled) return;
+        this.fuelSynth.triggerAttackRelease(['C5', 'E5', 'G5', 'C6'], '8n');
+    },
+
+    playCrash() {
+        if (!this.initialized || !this.enabled) return;
+        this.crashSynth.triggerAttackRelease('4n');
+    }
+};
+
+// --- 3. BABYLON.JS ENGINE & SCENE SETUP ---
+const canvas = document.getElementById('renderCanvas');
+const engine = new BABYLON.Engine(canvas, true, {
+    preserveDrawingBuffer: false,
+    stencil: false,
+    powerPreference: 'high-performance'
+});
+
+// Adaptive Resolution untuk performa 60 FPS stabil di Android kelas menengah
+function applyAdaptiveResolution() {
+    const dpr = window.devicePixelRatio || 1;
+    engine.setHardwareScalingLevel(dpr > 1.5 ? 1.25 : 1.0);
+}
+applyAdaptiveResolution();
+
+let scene, camera, dirLight, hemiLight;
+let skyDomeMat;
+
+// --- 4. PROCEDURAL HD TEXTURES (TANPA URL EKSTERNAL) ---
+function createTerrainTexture(topHex, dirtHex) {
+    const tex = new BABYLON.DynamicTexture('terrainTex', { width: 512, height: 512 }, scene, false);
+    const ctx = tex.getContext();
+
+    // Lapisan Tanah Dasar
+    ctx.fillStyle = dirtHex;
+    ctx.fillRect(0, 0, 512, 512);
+
+    // Tekstur Bebatuan & Kerikil Tanah
+    for (let i = 0; i < 450; i++) {
+        const x = Math.random() * 512;
+        const y = 70 + Math.random() * 442;
+        const r = 3 + Math.random() * 14;
+        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.16)' : 'rgba(255,255,255,0.08)';
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Lapisan Atas (Rumput / Pasir / Batu / Salju)
+    ctx.fillStyle = topHex;
+    ctx.fillRect(0, 0, 512, 68);
+
+    // Gelombang tepi lapisan atas
+    for (let x = 0; x <= 512; x += 16) {
+        ctx.beginPath();
+        ctx.arc(x, 68, 12 + (x % 32 === 0 ? 5 : 0), 0, Math.PI);
+        ctx.fill();
+    }
+
+    // Highlight Permukaan Atas
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.fillRect(0, 0, 512, 16);
+
+    tex.update();
+    tex.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE;
+    tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    return tex;
+}
+
+function createTireTexture() {
+    const tex = new BABYLON.DynamicTexture('tireTex', { width: 256, height: 256 }, scene, false);
+    const ctx = tex.getContext();
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(0, 0, 256, 256);
+
+    // Pola tapak ban off-road
+    ctx.fillStyle = '#0f172a';
+    for (let y = 0; y < 256; y += 32) {
+        ctx.fillRect(0, y, 256, 14);
+    }
+    tex.update();
+    return tex;
+}
+
+function createSkyTexture(topColor, bottomColor) {
+    const tex = new BABYLON.DynamicTexture('skyTex', { width: 64, height: 512 }, scene, false);
+    const ctx = tex.getContext();
+    const grad = ctx.createLinearGradient(0, 0, 0, 512);
+    grad.addColorStop(0, topColor);
+    grad.addColorStop(1, bottomColor);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 64, 512);
+    tex.update();
+    return tex;
+}
+
+// --- 5. PROCEDURAL TERRAIN & OBJECT POOLING ---
+const TERRAIN_STEP = 1.5; // Jarak antar titik kontur tanah (meter)
+const SEGMENT_POINTS = 28; // Jumlah titik per segmen mesh
+const POOL_SEGMENTS = 10;  // Object pool segmen terrain aktif
+
+let terrainPool = [];
+let propPool = [];
+let coinPool = [];
+let fuelPool = [];
+let dustParticles = [];
+
+let generatedUntilIndex = 0;
+let lastSpawnedCoinX = 12;
+let lastSpawnedFuelX = 65;
+
+// Fungsi Deterministik Kontur Bukit & Lembah (Semakin jauh semakin menantang)
+function getTerrainHeight(x) {
+    if (x < 12) return 0; // Area start datar agar stabil
+    const level = LEVELS.find(l => l.id === saveData.selectedLevel) || LEVELS[0];
+    const progress = Math.min(2.6, 1.0 + (x / 900));
+    const r = level.roughness * progress;
+
+    // Kombinasi gelombang harmonik untuk bukit alami + lembah curam
+    const h1 = Math.sin(x * 0.055) * 3.8 * r;
+    const h2 = Math.sin(x * 0.14 + 1.2) * 1.65 * r;
+    const h3 = Math.cos(x * 0.024) * 5.2 * Math.min(1.8, progress);
+    const micro = Math.sin(x * 0.42) * 0.25 * level.roughness;
+
+    return h1 + h2 + h3 + micro;
+}
+
+function getTerrainSlope(x) {
+    const eps = 0.25;
+    const h1 = getTerrainHeight(x - eps);
+    const h2 = getTerrainHeight(x + eps);
+    return Math.atan2(h2 - h1, eps * 2);
+}
+
+// --- 6. KONSTRUKSI KENDARAAN 3D ORIGINAL & PENGEMUDI ---
+let vehicleRoot, chassisNode, driverHeadNode;
+let frontWheelNode, rearWheelNode;
+let frontSuspensionStrut, rearSuspensionStrut;
+
+function buildVehicleMesh(vehConfig) {
+    if (vehicleRoot) {
+        vehicleRoot.dispose();
+    }
+
+    vehicleRoot = new BABYLON.TransformNode('vehicleRoot', scene);
+    chassisNode = new BABYLON.TransformNode('chassisNode', scene);
+    chassisNode.parent = vehicleRoot;
+
+    const mainMat = new BABYLON.StandardMaterial('vehMainMat', scene);
+    mainMat.diffuseColor = BABYLON.Color3.FromHexString(vehConfig.color);
+    mainMat.specularColor = new BABYLON.Color3(0.4, 0.4, 0.4);
+
+    const accentMat = new BABYLON.StandardMaterial('vehAccentMat', scene);
+    accentMat.diffuseColor = BABYLON.Color3.FromHexString(vehConfig.accent);
+
+    const darkMetalMat = new BABYLON.StandardMaterial('darkMetalMat', scene);
+    darkMetalMat.diffuseColor = new BABYLON.Color3(0.12, 0.15, 0.2);
+
+    const chromeMat = new BABYLON.StandardMaterial('chromeMat', scene);
+    chromeMat.diffuseColor = new BABYLON.Color3(0.85, 0.88, 0.92);
+    chromeMat.specularColor = new BABYLON.Color3(1, 1, 1);
+
+    const glassMat = new BABYLON.StandardMaterial('glassMat', scene);
+    glassMat.diffuseColor = new BABYLON.Color3(0.55, 0.85, 0.98);
+    glassMat.alpha = 0.55;
+
+    // 1. Bodi Utama Kendaraan
+    const body = BABYLON.MeshBuilder.CreateBox('body', {
+        width: vehConfig.chassisWidth,
+        height: vehConfig.chassisHeight,
+        depth: 1.75
+    }, scene);
+    body.material = mainMat;
+    body.position.y = 0.25;
+    body.parent = chassisNode;
+
+    // Kap Mesin (Hood)
+    const hood = BABYLON.MeshBuilder.CreateBox('hood', {
+        width: vehConfig.chassisWidth * 0.36,
+        height: vehConfig.chassisHeight * 0.45,
+        depth: 1.65
+    }, scene);
+    hood.material = accentMat;
+    hood.position.set(vehConfig.chassisWidth * 0.28, 0.55, 0);
+    hood.parent = chassisNode;
+
+    // Roll Cage / Kabin Pengemudi
+    const cabin = BABYLON.MeshBuilder.CreateBox('cabin', {
+        width: vehConfig.chassisWidth * 0.42,
+        height: 0.78,
+        depth: 1.48
+    }, scene);
+    cabin.material = darkMetalMat;
+    cabin.position.set(-0.2, 0.85, 0);
+    cabin.parent = chassisNode;
+
+    // Kaca Depan
+    const windshield = BABYLON.MeshBuilder.CreateBox('windshield', {
+        width: 0.12,
+        height: 0.65,
+        depth: 1.42
+    }, scene);
+    windshield.material = glassMat;
+    windshield.rotation.z = 0.35;
+    windshield.position.set(0.45, 0.88, 0);
+    windshield.parent = chassisNode;
+
+    // Detail Mesin Turbo / Knalpot di Belakang
+    const engineBlock = BABYLON.MeshBuilder.CreateCylinder('engineBlock', {
+        diameter: 0.48,
+        height: 0.7
+    }, scene);
+    engineBlock.material = chromeMat;
+    engineBlock.rotation.z = Math.PI / 2;
+    engineBlock.position.set(-vehConfig.chassisWidth * 0.38, 0.65, 0);
+    engineBlock.parent = chassisNode;
+
+    // Bumper Depan & Lampu Sorot
+    const bumper = BABYLON.MeshBuilder.CreateBox('bumper', {
+        width: 0.32,
+        height: 0.32,
+        depth: 1.85
+    }, scene);
+    bumper.material = chromeMat;
+    bumper.position.set(vehConfig.chassisWidth * 0.52, 0.12, 0);
+    bumper.parent = chassisNode;
+
+    const headlight = BABYLON.MeshBuilder.CreateSphere('headlight', { diameter: 0.28 }, scene);
+    const lightMat = new BABYLON.StandardMaterial('hlMat', scene);
+    lightMat.emissiveColor = new BABYLON.Color3(1, 0.95, 0.6);
+    headlight.material = lightMat;
+    headlight.position.set(vehConfig.chassisWidth * 0.52, 0.42, 0.55);
+    headlight.parent = chassisNode;
+
+    // 2. Karakter Pengemudi 3D Original (Helm Balap & Syal)
+    const driverTorso = BABYLON.MeshBuilder.CreateCylinder('driverTorso', {
+        diameterTop: 0.45,
+        diameterBottom: 0.52,
+        height: 0.55
+    }, scene);
+    const suitMat = new BABYLON.StandardMaterial('suitMat', scene);
+    suitMat.diffuseColor = new BABYLON.Color3(0.95, 0.95, 0.98);
+    driverTorso.material = suitMat;
+    driverTorso.position.set(-0.15, 0.72, 0);
+    driverTorso.parent = chassisNode;
+
+    driverHeadNode = new BABYLON.TransformNode('driverHead', scene);
+    driverHeadNode.position.set(-0.15, 1.18, 0);
+    driverHeadNode.parent = chassisNode;
+
+    const helmet = BABYLON.MeshBuilder.CreateSphere('helmet', { diameter: 0.56 }, scene);
+    const helmetMat = new BABYLON.StandardMaterial('helmetMat', scene);
+    helmetMat.diffuseColor = BABYLON.Color3.FromHexString(vehConfig.accent);
+    helmet.material = helmetMat;
+    helmet.parent = driverHeadNode;
+
+    const visor = BABYLON.MeshBuilder.CreateBox('visor', { width: 0.25, height: 0.18, depth: 0.48 }, scene);
+    visor.material = darkMetalMat;
+    visor.position.set(0.18, 0.03, 0);
+    visor.parent = driverHeadNode;
+
+    // 3. Suspensi & Roda Depan/Belakang
+    const tireTex = createTireTexture();
+    const tireMat = new BABYLON.StandardMaterial('tireMat', scene);
+    tireMat.diffuseTexture = tireTex;
+
+    const rimMat = new BABYLON.StandardMaterial('rimMat', scene);
+    rimMat.diffuseColor = BABYLON.Color3.FromHexString(vehConfig.accent);
+
+    function createWheelAssembly(name, xOffset) {
+        const wheelGroup = new BABYLON.TransformNode(name, scene);
+        wheelGroup.position.set(xOffset, -0.35, 0);
+        wheelGroup.parent = vehicleRoot;
+
+        // Ban Utama (3D Cylinder menghadap samping)
+        const tire = BABYLON.MeshBuilder.CreateCylinder(name + '_tire', {
+            diameter: vehConfig.wheelRadius * 2,
+            height: 0.65,
+            tessellation: 24
+        }, scene);
+        tire.rotation.x = Math.PI / 2;
+        tire.material = tireMat;
+        tire.parent = wheelGroup;
+
+        // Velg (Rim)
+        const rim = BABYLON.MeshBuilder.CreateCylinder(name + '_rim', {
+            diameter: vehConfig.wheelRadius * 1.1,
+            height: 0.68,
+            tessellation: 12
+        }, scene);
+        rim.rotation.x = Math.PI / 2;
+        rim.material = rimMat;
+        rim.parent = wheelGroup;
+
+        // Palang Velg agar rotasi roda terlihat jelas
+        const spoke = BABYLON.MeshBuilder.CreateBox(name + '_spoke', {
+            width: vehConfig.wheelRadius * 0.95,
+            height: 0.16,
+            depth: 0.72
+        }, scene);
+        spoke.material = darkMetalMat;
+        spoke.parent = wheelGroup;
+
+        // Shockbreaker / Pegas Suspensi
+        const strut = BABYLON.MeshBuilder.CreateCylinder(name + '_strut', {
+            diameter: 0.16,
+            height: 0.75
+        }, scene);
+        strut.material = chromeMat;
+        strut.position.set(xOffset * 0.85, 0.05, 0.55);
+        strut.parent = chassisNode;
+
+        return { wheelGroup, strut };
+    }
+
+    const frontAssy = createWheelAssembly('frontWheel', vehConfig.wheelBase * 0.5);
+    frontWheelNode = frontAssy.wheelGroup;
+    frontSuspensionStrut = frontAssy.strut;
+
+    const rearAssy = createWheelAssembly('rearWheel', -vehConfig.wheelBase * 0.5);
+    rearWheelNode = rearAssy.wheelGroup;
+    rearSuspensionStrut = rearAssy.strut;
+}
+
+// --- 7. INISIALISASI SCENE, LIGHTING & PARALLAX MOUNTAINS ---
+let mountainLayers = [];
+let terrainMat;
+
+function initBabylonScene() {
+    scene = new BABYLON.Scene(engine);
+    scene.clearColor = new BABYLON.Color4(0.1, 0.5, 0.85, 1);
+
+    // Kamera Orthographic / Perspective 2.5D Side-Scrolling
+    camera = new BABYLON.FreeCamera('sideCam', new BABYLON.Vector3(0, 4, -18), scene);
+    camera.setTarget(new BABYLON.Vector3(3, 2, 0));
+    camera.fov = 0.68;
+
+    // Dynamic Lighting
+    hemiLight = new BABYLON.HemisphericLight('hemiLight', new BABYLON.Vector3(0, 1, -0.3), scene);
+    hemiLight.intensity = 0.82;
+
+    dirLight = new BABYLON.DirectionalLight('dirLight', new BABYLON.Vector3(0.4, -0.85, 0.5), scene);
+    dirLight.intensity = 0.95;
+
+    // Sky Dome Background
+    const skyBox = BABYLON.MeshBuilder.CreatePlane('skyPlane', { width: 160, height: 95 }, scene);
+    skyBox.position.set(0, 15, 45);
+    skyBox.parent = camera;
+    skyDomeMat = new BABYLON.StandardMaterial('skyMat', scene);
+    skyDomeMat.disableLighting = true;
+    skyBox.material = skyDomeMat;
+
+    // Parallax Background Mountains (2 Lapisan Pegunungan 3D)
+    for (let layer = 0; layer < 2; layer++) {
+        const zDepth = layer === 0 ? 16 : 28;
+        const scaleY = layer === 0 ? 1.0 : 1.65;
+        const mMat = new BABYLON.StandardMaterial('mMat_' + layer, scene);
+
+        for (let i = 0; i < 14; i++) {
+            const peak = BABYLON.MeshBuilder.CreateCylinder('peak_' + layer + '_' + i, {
+                diameterTop: 0.4,
+                diameterBottom: 18 + (i % 3) * 6,
+                height: (14 + (i % 4) * 5) * scaleY,
+                tessellation: 4
+            }, scene);
+            peak.material = mMat;
+            peak.position.set(-40 + i * 16, 2 * scaleY, zDepth);
+            peak.rotation.y = Math.PI / 4;
+            mountainLayers.push({ mesh: peak, layer: layer, baseX: -40 + i * 16, mat: mMat });
+        }
+    }
+
+    // Material Terrain Utama
+    terrainMat = new BABYLON.StandardMaterial('terrainMat', scene);
+    terrainMat.specularColor = new BABYLON.Color3(0.08, 0.08, 0.08);
+
+    // Pre-allocate Object Pools (Terrain, Props, Coins, Fuel)
+    initObjectPools();
+    applyLevelTheme(saveData.selectedLevel);
+}
+
+function initObjectPools() {
+    // Pool Segmen Terrain
+    for (let i = 0; i < POOL_SEGMENTS; i++) {
+        terrainPool.push({ mesh: null, startIdx: -999 });
+    }
+
+    // Pool Koin (3D Emas Berputar)
+    const coinMat = new BABYLON.StandardMaterial('coinMat', scene);
+    coinMat.diffuseColor = new BABYLON.Color3(1, 0.84, 0);
+    coinMat.emissiveColor = new BABYLON.Color3(0.45, 0.32, 0);
+
+    for (let i = 0; i < 45; i++) {
+        const c = BABYLON.MeshBuilder.CreateCylinder('coin_' + i, {
+            diameter: 0.95,
+            height: 0.22,
+            tessellation: 16
+        }, scene);
+        c.rotation.x = Math.PI / 2;
+        c.material = coinMat;
+        c.setEnabled(false);
+        coinPool.push({ mesh: c, active: false, x: 0, y: 0, value: 25 });
+    }
+
+    // Pool Jeriken Bensin (Fuel Canister Merah)
+    const fuelMat = new BABYLON.StandardMaterial('fuelMat', scene);
+    fuelMat.diffuseColor = new BABYLON.Color3(0.95, 0.15, 0.2);
+    fuelMat.emissiveColor = new BABYLON.Color3(0.35, 0.02, 0.05);
+
+    for (let i = 0; i < 6; i++) {
+        const f = BABYLON.MeshBuilder.CreateBox('fuel_' + i, {
+            width: 1.0,
+            height: 1.25,
+            depth: 0.65
+        }, scene);
+        f.material = fuelMat;
+        f.setEnabled(false);
+        fuelPool.push({ mesh: f, active: false, x: 0, y: 0 });
+    }
+
+    // Pool Dekorasi Lingkungan (Pohon, Kaktus, Batu)
+    const propMat = new BABYLON.StandardMaterial('propMat', scene);
+    propMat.diffuseColor = new BABYLON.Color3(0.15, 0.55, 0.25);
+
+    for (let i = 0; i < 24; i++) {
+        const p = BABYLON.MeshBuilder.CreateCylinder('prop_' + i, {
+            diameterTop: 0.2,
+            diameterBottom: 1.6,
+            height: 3.4,
+            tessellation: 7
+        }, scene);
+        p.material = propMat;
+        p.setEnabled(false);
+        propPool.push({ mesh: p, active: false, x: 0 });
+    }
+}
+
+function applyLevelTheme(levelId) {
+    const lvl = LEVELS.find(l => l.id === levelId) || LEVELS[0];
+    skyDomeMat.diffuseTexture = createSkyTexture(lvl.skyTop, lvl.skyBottom);
+    terrainMat.diffuseTexture = createTerrainTexture(lvl.groundTopColor, lvl.groundDirtColor);
+    scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+    scene.fogColor = lvl.fogColor;
+    scene.fogDensity = 0.0085;
+
+    mountainLayers.forEach(m => {
+        const shade = m.layer === 0 ? 1.0 : 0.75;
+        m.mat.diffuseColor = new BABYLON.Color3(
+            lvl.mountainColor.r * shade,
+            lvl.mountainColor.g * shade,
+            lvl.mountainColor.b * shade
+        );
+    });
+
+    // Sesuaikan warna dekorasi prop
+    propPool.forEach(p => {
+        if (lvl.propType === 'cactus') p.mesh.material.diffuseColor = new BABYLON.Color3(0.2, 0.65, 0.25);
+        else if (lvl.propType === 'rock') p.mesh.material.diffuseColor = new BABYLON.Color3(0.45, 0.48, 0.52);
+        else if (lvl.propType === 'pine') p.mesh.material.diffuseColor = new BABYLON.Color3(0.85, 0.94, 0.98);
+        else p.mesh.material.diffuseColor = new BABYLON.Color3(0.12, 0.58, 0.24);
+    });
+}
+
+// Membuat / Memperbarui Segmen Mesh Tanah 2.5D dengan Ribbon/Custom VertexData
+function buildTerrainSegmentMesh(slot, startIdx) {
+    if (slot.mesh) {
+        slot.mesh.dispose();
+    }
+
+    const positions = [];
+    const indices = [];
+    const uvs = [];
+    const normals = [];
+
+    const depth = 6.5;
+    const bottomY = -28;
+
+    for (let i = 0; i <= SEGMENT_POINTS; i++) {
+        const ptIdx = startIdx + i;
+        const x = ptIdx * TERRAIN_STEP;
+        const y = getTerrainHeight(x);
+        const u = x * 0.12;
+
+        // 0: Atas Depan, 1: Atas Belakang, 2: Bawah Depan
+        positions.push(x, y, -depth * 0.5);
+        uvs.push(u, 1);
+
+        positions.push(x, y, depth * 0.5);
+        uvs.push(u, 0.88);
+
+        positions.push(x, bottomY, -depth * 0.5);
+        uvs.push(u, 0);
+    }
+
+    for (let i = 0; i < SEGMENT_POINTS; i++) {
+        const b = i * 3;
+        const n = (i + 1) * 3;
+
+        // Permukaan Atas Jalan (Top Surface)
+        indices.push(b, b + 1, n);
+        indices.push(b + 1, n + 1, n);
+
+        // Dinding Samping Depan (Front Cliff Cross-section)
+        indices.push(b, n, b + 2);
+        indices.push(n, n + 2, b + 2);
+    }
+
+    BABYLON.VertexData.ComputeNormals(positions, indices, normals);
+    const vertexData = new BABYLON.VertexData();
+    vertexData.positions = positions;
+    vertexData.indices = indices;
+    vertexData.uvs = uvs;
+    vertexData.normals = normals;
+
+    const mesh = new BABYLON.Mesh('terrainSeg_' + startIdx, scene);
+    vertexData.applyToMesh(mesh);
+    mesh.material = terrainMat;
+    mesh.freezeWorldMatrix();
+
+    slot.mesh = mesh;
+    slot.startIdx = startIdx;
+}
+
+// --- 8. FISIKA KENDARAAN 2.5D & SUSPENSI ---
+const GameState = {
+    mode: 'MENU', // 'MENU', 'PLAYING', 'PAUSED', 'GAMEOVER'
+    gasPressed: false,
+    brakePressed: false,
+    distance: 0,
+    sessionCoins: 0,
+    fuel: 100,
+    maxFuel: 100,
+    airTime: 0,
+    flipAngleAccum: 0
+};
+
+// State Fisika Mobil
+const CarPhysics = {
+    x: 4,
+    y: 2,
+    vx: 0,
+    vy: 0,
+    angle: 0,
+    angularVel: 0,
+    wheelAngle: 0,
+    frontCompression: 0,
+    rearCompression: 0,
+    onGround: false,
+    upsideDownTimer: 0
+};
+
+function getUpgradedVehicleStats() {
+    const veh = VEHICLES.find(v => v.id === saveData.selectedVehicle) || VEHICLES[0];
+    const upg = saveData.upgrades[veh.id];
+
+    return {
+        ...veh,
+        power: veh.basePower * (1 + (upg.engine - 1) * 0.14),
+        suspension: veh.baseSuspension * (1 + (upg.suspension - 1) * 0.12),
+        grip: veh.baseGrip * (1 + (upg.tire - 1) * 0.11),
+        maxFuel: veh.baseFuelCap * (1 + (upg.fuel - 1) * 0.18)
+    };
+}
+
+function resetRunSession() {
+    const stats = getUpgradedVehicleStats();
+    const lvl = LEVELS.find(l => l.id === saveData.selectedLevel) || LEVELS[0];
+
+    applyLevelTheme(lvl.id);
+    buildVehicleMesh(stats);
+
+    GameState.distance = 0;
+    GameState.sessionCoins = 0;
+    GameState.maxFuel = stats.maxFuel;
+    GameState.fuel = stats.maxFuel;
+    GameState.airTime = 0;
+    GameState.flipAngleAccum = 0;
+    GameState.gasPressed = false;
+    GameState.brakePressed = false;
+
+    CarPhysics.x = 4;
+    CarPhysics.y = getTerrainHeight(4) + stats.wheelRadius + 0.6;
+    CarPhysics.vx = 0;
+    CarPhysics.vy = 0;
+    CarPhysics.angle = 0;
+    CarPhysics.angularVel = 0;
+    CarPhysics.wheelAngle = 0;
+    CarPhysics.upsideDownTimer = 0;
+
+    // Reset Pools
+    coinPool.forEach(c => { c.active = false; c.mesh.setEnabled(false); });
+    fuelPool.forEach(f => { f.active = false; f.mesh.setEnabled(false); });
+    propPool.forEach(p => { p.active = false; p.mesh.setEnabled(false); });
+
+    lastSpawnedCoinX = 16;
+    lastSpawnedFuelX = 75;
+
+    // Bangun segmen terrain awal
+    const startSegIdx = -4;
+    for (let i = 0; i < POOL_SEGMENTS; i++) {
+        buildTerrainSegmentMesh(terrainPool[i], startSegIdx + i * SEGMENT_POINTS);
+    }
+    generatedUntilIndex = startSegIdx + POOL_SEGMENTS * SEGMENT_POINTS;
+
+    // Spawn item awal
+    populateWorldAhead(140);
+    updateHUD();
+}
+
+function populateWorldAhead(targetX) {
+    // 1. Spawn Deretan Koin mengikuti kontur bukit
+    while (lastSpawnedCoinX < targetX) {
+        const groupLen = 4 + Math.floor(Math.random() * 4);
+        for (let k = 0; k < groupLen; k++) {
+            const cx = lastSpawnedCoinX + k * 2.2;
+            const cy = getTerrainHeight(cx) + 1.25;
+            const slot = coinPool.find(c => !c.active);
+            if (slot) {
+                slot.active = true;
+                slot.x = cx;
+                slot.y = cy;
+                slot.value = k === groupLen - 1 ? 50 : 25;
+                slot.mesh.position.set(cx, cy, 0);
+                slot.mesh.scaling.setAll(k === groupLen - 1 ? 1.25 : 1.0);
+                slot.mesh.setEnabled(true);
+            }
+        }
+        lastSpawnedCoinX += 24 + Math.random() * 14;
+    }
+
+    // 2. Spawn Jeriken Bensin berkala setiap ~80-95 meter
+    while (lastSpawnedFuelX < targetX) {
+        const fx = lastSpawnedFuelX;
+        const fy = getTerrainHeight(fx) + 1.15;
+        const slot = fuelPool.find(f => !f.active);
+        if (slot) {
+            slot.active = true;
+            slot.x = fx;
+            slot.y = fy;
+            slot.mesh.position.set(fx, fy, 0);
+            slot.mesh.setEnabled(true);
+        }
+        lastSpawnedFuelX += 82 + Math.random() * 18;
+    }
+
+    // 3. Spawn Dekorasi Latar Belakang Dekat (Pohon / Batu / Kaktus)
+    for (let i = 0; i < propPool.length; i++) {
+        const p = propPool[i];
+        if (!p.active || p.x < CarPhysics.x - 25) {
+            const px = (p.active ? targetX - 10 : CarPhysics.x + 15) + Math.random() * 45;
+            const py = getTerrainHeight(px) + 1.4;
+            p.active = true;
+            p.x = px;
+            p.mesh.position.set(px, py, 2.8 + Math.random() * 2.5);
+            p.mesh.scaling.y = 0.8 + Math.random() * 0.7;
+            p.mesh.setEnabled(true);
+        }
+    }
+}
+
+function stepPhysics(dt) {
+    const stats = getUpgradedVehicleStats();
+    const lvl = LEVELS.find(l => l.id === saveData.selectedLevel) || LEVELS[0];
+
+    const halfBase = stats.wheelBase * 0.5;
+    const cosA = Math.cos(CarPhysics.angle);
+    const sinA = Math.sin(CarPhysics.angle);
+
+    // Posisi Dunia Roda Depan & Belakang
+    const frontWheelWorldX = CarPhysics.x + cosA * halfBase;
+    const frontWheelWorldY = CarPhysics.y + sinA * halfBase - 0.35;
+
+    const rearWheelWorldX = CarPhysics.x - cosA * halfBase;
+    const rearWheelWorldY = CarPhysics.y - sinA * halfBase - 0.35;
+
+    // Ketinggian Tanah di Bawah Masing-masing Roda
+    const groundFrontY = getTerrainHeight(frontWheelWorldX);
+    const groundRearY = getTerrainHeight(rearWheelWorldX);
+
+    const frontPenetration = (groundFrontY + stats.wheelRadius) - frontWheelWorldY;
+    const rearPenetration = (groundRearY + stats.wheelRadius) - rearWheelWorldY;
+
+    const frontGrounded = frontPenetration > -0.05;
+    const rearGrounded = rearPenetration > -0.05;
+    CarPhysics.onGround = frontGrounded || rearGrounded;
+
+    // Gaya Gravitasi
+    let forceX = 0;
+    let forceY = lvl.gravity * stats.mass;
+    let torque = 0;
+
+    // Gaya Suspensi Pegas & Damper pada Roda Depan
+    if (frontGrounded) {
+        const comp = Math.max(0, Math.min(0.85, frontPenetration));
+        CarPhysics.frontCompression = comp;
+        const springForce = comp * stats.suspension - CarPhysics.vy * 14;
+        forceY += Math.max(0, springForce);
+        torque += Math.max(0, springForce) * halfBase * 0.65;
+    } else {
+        CarPhysics.frontCompression *= 0.85;
+    }
+
+    // Gaya Suspensi Pegas & Damper pada Roda Belakang
+    if (rearGrounded) {
+        const comp = Math.max(0, Math.min(0.85, rearPenetration));
+        CarPhysics.rearCompression = comp;
+        const springForce = comp * stats.suspension - CarPhysics.vy * 14;
+        forceY += Math.max(0, springForce);
+        torque -= Math.max(0, springForce) * halfBase * 0.65;
+    } else {
+        CarPhysics.rearCompression *= 0.85;
+    }
+
+    // Kontrol GAS & BRAKE
+    const totalGrip = stats.grip * lvl.friction;
+    let rpmRatio = 0.15;
+
+    if (GameState.gasPressed && GameState.fuel > 0) {
+        rpmRatio = 0.95;
+        GameState.fuel -= dt * 3.8; // Konsumsi bensin saat mengegas
+
+        if (CarPhysics.onGround) {
+            // Dorongan maju sejajar kemiringan mobil
+            const driveForce = stats.power * totalGrip;
+            forceX += cosA * driveForce;
+            forceY += sinA * driveForce;
+            // Torsi wheelie ringan saat akselerasi
+            torque += stats.power * 0.14;
+        } else {
+            // Rotasi pitch di udara (Flip / Stabilisasi)
+            torque += 14.5;
+        }
+        CarPhysics.wheelAngle -= dt * 22;
+    } else if (GameState.brakePressed) {
+        rpmRatio = 0.45;
+        if (CarPhysics.onGround) {
+            if (CarPhysics.vx > 0.8) {
+                // Pengereman kuat
+                forceX -= cosA * stats.power * 1.15 * totalGrip;
+            } else {
+                // Gigi mundur (Reverse)
+                forceX -= cosA * stats.power * 0.55 * totalGrip;
+            }
+            torque -= stats.power * 0.12;
+        } else {
+            // Rotasi menunduk di udara
+            torque -= 14.5;
+        }
+        CarPhysics.wheelAngle += dt * 14;
+    } else {
+        // Konsumsi bensin idle minimal
+        GameState.fuel -= dt * 1.1;
+        CarPhysics.wheelAngle -= CarPhysics.vx * dt * 1.4;
+    }
+
+    AudioEngine.updateEngine(rpmRatio, GameState.mode === 'PLAYING');
+
+    // Hambatan Udara & Rolling Resistance
+    forceX -= CarPhysics.vx * (CarPhysics.onGround ? 0.85 : 0.22);
+    forceY -= CarPhysics.vy * 0.35;
+
+    // Integrasi Kecepatan & Posisi
+    CarPhysics.vx += (forceX / stats.mass) * dt;
+    CarPhysics.vy += (forceY / stats.mass) * dt;
+
+    // Batas kecepatan maksimal
+    CarPhysics.vx = Math.max(-14, Math.min(34, CarPhysics.vx));
+
+    CarPhysics.x += CarPhysics.vx * dt;
+    CarPhysics.y += CarPhysics.vy * dt;
+
+    // Cegah pemain mundur melewati batas start
+    if (CarPhysics.x < 2) {
+        CarPhysics.x = 2;
+        CarPhysics.vx = Math.max(0, CarPhysics.vx);
+    }
+
+    // Penyesuaian Posisi Keras agar Roda Tidak Tenggelam ke Tanah
+    const avgGroundY = (groundFrontY + groundRearY) * 0.5;
+    const minChassisY = avgGroundY + stats.wheelRadius + 0.22;
+    if (CarPhysics.y < minChassisY) {
+        CarPhysics.y = minChassisY;
+        if (CarPhysics.vy < 0) CarPhysics.vy = 0;
+    }
+
+    // Integrasi Rotasi Sudut Kendaraan
+    CarPhysics.angularVel += (torque / (stats.mass * 2.4)) * dt;
+    CarPhysics.angularVel *= CarPhysics.onGround ? 0.84 : 0.94;
+    CarPhysics.angle += CarPhysics.angularVel * dt;
+
+    // Selaraskan sudut mobil dengan kontur lereng saat di tanah
+    if (frontGrounded && rearGrounded) {
+        const terrainAngle = Math.atan2(groundFrontY - groundRearY, stats.wheelBase);
+        const angleDiff = normalizeAngle(terrainAngle - CarPhysics.angle);
+        if (Math.abs(angleDiff) < 1.15) {
+            CarPhysics.angle += angleDiff * Math.min(1, dt * 11);
+        }
+    }
+
+    // Deteksi Air Time & Stunt Flip
+    if (!CarPhysics.onGround) {
+        GameState.airTime += dt;
+        GameState.flipAngleAccum += CarPhysics.angularVel * dt;
+    } else {
+        if (GameState.airTime > 1.15) {
+            const bonus = Math.round(GameState.airTime * 40);
+            GameState.sessionCoins += bonus;
+            showStuntToast(`AIR TIME +${bonus}!`);
+            AudioEngine.playCoin();
+        }
+        if (Math.abs(GameState.flipAngleAccum) > Math.PI * 1.75) {
+            GameState.sessionCoins += 150;
+            showStuntToast('FLIP BONUS +150!');
+            AudioEngine.playCoin();
+        }
+        GameState.airTime = 0;
+        GameState.flipAngleAccum = 0;
+    }
+
+    // Deteksi Kecelakaan (Mobil Terbalik / Driver Down)
+    const normAng = Math.abs(normalizeAngle(CarPhysics.angle));
+    if (normAng > 2.15 && CarPhysics.onGround) {
+        CarPhysics.upsideDownTimer += dt;
+        if (CarPhysics.upsideDownTimer > 0.65) {
+            endGame('DRIVER DOWN — KENDARAAN TERBALIK!');
+            return;
+        }
+    } else {
+        CarPhysics.upsideDownTimer = 0;
+    }
+
+    // Cek Bensin Habis
+    if (GameState.fuel <= 0) {
+        GameState.fuel = 0;
+        if (Math.abs(CarPhysics.vx) < 0.6 || GameState.fuel <= 0) {
+            endGame('KEHABISAN BAHAN BAKAR!');
+            return;
+        }
+    }
+
+    // Update Jarak Tempuh
+    const currentMeters = Math.max(0, Math.floor((CarPhysics.x - 4) * 0.5));
+    if (currentMeters > GameState.distance) {
+        GameState.distance = currentMeters;
+    }
+
+    // Update Visual Mesh Kendaraan & Suspensi
+    vehicleRoot.position.set(CarPhysics.x, CarPhysics.y, 0);
+    vehicleRoot.rotation.z = CarPhysics.angle;
+
+    frontWheelNode.position.y = -0.35 + CarPhysics.frontCompression * 0.45;
+    rearWheelNode.position.y = -0.35 + CarPhysics.rearCompression * 0.45;
+
+    frontWheelNode.rotation.z = CarPhysics.wheelAngle;
+    rearWheelNode.rotation.z = CarPhysics.wheelAngle;
+
+    // Animasi kepala pengemudi bergoyang mengikuti akselerasi
+    driverHeadNode.rotation.z = -CarPhysics.vx * 0.012;
+
+    // Emit Partikel Debu saat Roda Menyentuh Tanah
+    if (CarPhysics.onGround && Math.abs(CarPhysics.vx) > 3.5 && Math.random() < 0.45) {
+        spawnDustParticle(rearWheelWorldX, groundRearY + 0.15, lvl.groundTopColor);
+    }
+}
+
+function normalizeAngle(a) {
+    while (a > Math.PI) a -= Math.PI * 2;
+    while (a < -Math.PI) a += Math.PI * 2;
+    return a;
+}
+
+// --- 9. PARTIKEL DEBU & KOLEKSI ITEM ---
+function spawnDustParticle(x, y, colorHex) {
+    const p = BABYLON.MeshBuilder.CreateBox('dust', { size: 0.24 }, scene);
+    const mat = new BABYLON.StandardMaterial('dMat', scene);
+    mat.diffuseColor = BABYLON.Color3.FromHexString(colorHex);
+    p.material = mat;
+    p.position.set(x, y, (Math.random() - 0.5) * 0.8);
+    dustParticles.push({
+        mesh: p,
+        vx: -2 - Math.random() * 3,
+        vy: 1.5 + Math.random() * 2.5,
+        life: 0.45
+    });
+}
+
+function updateWorldAndItems(dt) {
+    // 1. Daur Ulang Segmen Terrain di Belakang Pemain (Infinite World)
+    const minNeededIdx = Math.floor((CarPhysics.x - 35) / TERRAIN_STEP);
+    for (let i = 0; i < terrainPool.length; i++) {
+        const slot = terrainPool[i];
+        if (slot.startIdx + SEGMENT_POINTS < minNeededIdx) {
+            buildTerrainSegmentMesh(slot, generatedUntilIndex);
+            generatedUntilIndex += SEGMENT_POINTS;
+        }
+    }
+
+    // 2. Spawn Koin, Bensin & Prop di Depan
+    populateWorldAhead(CarPhysics.x + 110);
+
+    // 3. Cek Pengambilan Koin
+    for (let i = 0; i < coinPool.length; i++) {
+        const c = coinPool[i];
+        if (!c.active) continue;
+
+        c.mesh.rotation.y += dt * 3.5;
+
+        const dx = Math.abs(CarPhysics.x - c.x);
+        const dy = Math.abs(CarPhysics.y - c.y);
+        if (dx < 1.9 && dy < 1.7) {
+            c.active = false;
+            c.mesh.setEnabled(false);
+            GameState.sessionCoins += c.value;
+            AudioEngine.playCoin();
+        } else if (c.x < CarPhysics.x - 25) {
+            c.active = false;
+            c.mesh.setEnabled(false);
+        }
+    }
+
+    // 4. Cek Pengambilan Jeriken Bensin
+    for (let i = 0; i < fuelPool.length; i++) {
+        const f = fuelPool[i];
+        if (!f.active) continue;
+
+        f.mesh.rotation.y += dt * 2.2;
+
+        const dx = Math.abs(CarPhysics.x - f.x);
+        const dy = Math.abs(CarPhysics.y - f.y);
+        if (dx < 2.0 && dy < 1.8) {
+            f.active = false;
+            f.mesh.setEnabled(false);
+            GameState.fuel = GameState.maxFuel;
+            showStuntToast('BENSIN PENUH!');
+            AudioEngine.playFuel();
+        } else if (f.x < CarPhysics.x - 25) {
+            f.active = false;
+            f.mesh.setEnabled(false);
+        }
+    }
+
+    // 5. Update Partikel Debu
+    for (let i = dustParticles.length - 1; i >= 0; i--) {
+        const p = dustParticles[i];
+        p.life -= dt;
+        p.mesh.position.x += p.vx * dt;
+        p.mesh.position.y += p.vy * dt;
+        p.mesh.scaling.setAll(Math.max(0.01, p.life * 2));
+        if (p.life <= 0) {
+            p.mesh.dispose();
+            dustParticles.splice(i, 1);
+        }
+    }
+
+    // 6. Kamera Mengikuti Kendaraan Secara Halus & Parallax Pegunungan
+    const targetCamX = CarPhysics.x + 4.5 + CarPhysics.vx * 0.16;
+    const targetCamY = CarPhysics.y + 2.6;
+    const targetCamZ = -17.5 - Math.min(4.5, Math.abs(CarPhysics.vx) * 0.12);
+
+    camera.position.x += (targetCamX - camera.position.x) * Math.min(1, dt * 8);
+    camera.position.y += (targetCamY - camera.position.y) * Math.min(1, dt * 6);
+    camera.position.z += (targetCamZ - camera.position.z) * Math.min(1, dt * 4);
+    camera.setTarget(new BABYLON.Vector3(camera.position.x + 1.5, camera.position.y - 0.8, 0));
+
+    // Parallax Mountains mengikuti kamera dengan faktor kedalaman
+    mountainLayers.forEach(m => {
+        const factor = m.layer === 0 ? 0.72 : 0.88;
+        const relX = (m.baseX - camera.position.x * (1 - factor));
+        const wrappedX = camera.position.x + ((((relX - camera.position.x) % 210) + 210) % 210) - 95;
+        m.mesh.position.x = wrappedX;
+        m.mesh.position.y = camera.position.y - 4.5;
+    });
+}
+
+// --- 10. UI & INTERAKSI MENU / GARASI / TOKO UPGRADE ---
+let stuntTimeout = null;
+function showStuntToast(text) {
+    const el = document.getElementById('stuntToast');
+    el.innerText = text;
+    el.style.opacity = '1';
+    clearTimeout(stuntTimeout);
+    stuntTimeout = setTimeout(() => { el.style.opacity = '0'; }, 1400);
+}
+
+function updateHUD() {
+    document.getElementById('hudCoins').innerText = GameState.sessionCoins;
+    document.getElementById('hudDistance').innerText = GameState.distance;
+
+    const best = saveData.bestDistances[saveData.selectedLevel] || 0;
+    document.getElementById('hudBestDist').innerText = Math.max(best, GameState.distance);
+
+    const fuelPct = Math.max(0, Math.min(100, Math.round((GameState.fuel / GameState.maxFuel) * 100)));
+    document.getElementById('fuelPercentText').innerText = fuelPct + '%';
+    document.getElementById('fuelBarFill').style.width = fuelPct + '%';
+
+    const alertEl = document.getElementById('fuelAlert');
+    if (fuelPct <= 25) {
+        alertEl.innerText = 'BENSIN KRITIS!';
+        alertEl.className = 'text-rose-400 animate-pulse';
+    } else {
+        alertEl.innerText = 'BAHAN BAKAR';
+        alertEl.className = 'text-slate-300';
+    }
+}
+
+function renderGarageAndMenuUI() {
+    document.getElementById('menuTotalCoins').innerText = saveData.coins;
+
+    // 1. Render Grid Kendaraan
+    const vehGrid = document.getElementById('vehicleGrid');
+    vehGrid.innerHTML = '';
+
+    VEHICLES.forEach(v => {
+        const isUnlocked = saveData.unlockedVehicles.includes(v.id);
+        const isSelected = saveData.selectedVehicle === v.id;
+
+        const card = document.createElement('button');
+        card.className = `btn-action p-2.5 rounded-2xl border-2 text-left flex flex-col justify-between cursor-pointer ${
+            isSelected
+                ? 'bg-sky-500/20 border-sky-400 shadow-md shadow-sky-950'
+                : 'bg-slate-900/75 border-slate-700/80 hover:border-slate-500'
+        }`;
+
+        card.innerHTML = `
+            <div class="flex items-center justify-between w-full mb-1.5">
+                <span class="w-4 h-4 rounded-full border border-white/50" style="background:${v.color}"></span>
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${isUnlocked ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'}">
+                    ${isUnlocked ? 'MILIK' : '$' + v.price}
+                </span>
+            </div>
+            <div class="font-display text-xs sm:text-sm text-white leading-tight">${v.name}</div>
+        `;
+
+        card.onclick = () => {
+            saveData.selectedVehicle = v.id;
+            persistSaveData();
+            buildVehicleMesh(getUpgradedVehicleStats());
+            renderGarageAndMenuUI();
+        };
+        vehGrid.appendChild(card);
+    });
+
+    // 2. Detail Kendaraan Terpilih & Tombol Beli jika Terkunci
+    const activeVeh = VEHICLES.find(v => v.id === saveData.selectedVehicle);
+    const unlocked = saveData.unlockedVehicles.includes(activeVeh.id);
+    document.getElementById('vehDetailName').innerText = activeVeh.name;
+    document.getElementById('vehDetailDesc').innerText = activeVeh.desc;
+
+    const badge = document.getElementById('selectedVehicleBadge');
+    const actionContainer = document.getElementById('vehActionContainer');
+    actionContainer.innerHTML = '';
+
+    if (unlocked) {
+        badge.innerText = 'SIAP BALAP';
+        badge.className = 'text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+    } else {
+        badge.innerText = 'TERKUNCI';
+        badge.className = 'text-xs font-bold px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40';
+
+        const buyBtn = document.createElement('button');
+        const canAfford = saveData.coins >= activeVeh.price;
+        buyBtn.className = `btn-action px-4 py-2 rounded-xl font-display text-sm cursor-pointer ${
+            canAfford ? 'bg-amber-400 text-slate-950' : 'bg-slate-700 text-slate-400 opacity-60'
+        }`;
+        buyBtn.innerText = `BELI ($${activeVeh.price})`;
+        buyBtn.onclick = () => {
+            if (saveData.coins >= activeVeh.price) {
+                saveData.coins -= activeVeh.price;
+                saveData.unlockedVehicles.push(activeVeh.id);
+                persistSaveData();
+                AudioEngine.playFuel();
+                renderGarageAndMenuUI();
+            }
+        };
+        actionContainer.appendChild(buyBtn);
+    }
+
+    // 3. Render 4 Kartu Upgrade
+    const upgGrid = document.getElementById('upgradeGrid');
+    upgGrid.innerHTML = '';
+    const vehUpgrades = saveData.upgrades[activeVeh.id];
+
+    UPGRADE_TYPES.forEach(u => {
+        const curLvl = vehUpgrades[u.id];
+        const maxLvl = 10;
+        const isMax = curLvl >= maxLvl;
+        const cost = curLvl * 250;
+        const canBuy = unlocked && !isMax && saveData.coins >= cost;
+
+        const uCard = document.createElement('div');
+        uCard.className = 'bg-slate-900/90 border border-slate-700/80 rounded-2xl p-2.5 flex flex-col justify-between gap-2';
+        uCard.innerHTML = `
+            <div>
+                <div class="flex justify-between items-center">
+                    <span class="text-base">${u.icon}</span>
+                    <span class="text-xs font-bold text-sky-400">LV ${curLvl}/${maxLvl}</span>
+                </div>
+                <div class="font-display text-xs sm:text-sm text-white mt-0.5">${u.name}</div>
+                <div class="text-[10px] text-slate-400">${u.desc}</div>
+            </div>
+            <button class="upg-btn btn-action w-full py-1.5 rounded-xl font-display text-xs cursor-pointer ${
+                !unlocked
+                    ? 'bg-slate-800 text-slate-500'
+                    : isMax
+                    ? 'bg-emerald-600/40 text-emerald-300 border border-emerald-500/40'
+                    : canBuy
+                    ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950'
+                    : 'bg-slate-800 text-slate-400'
+            }">
+                ${!unlocked ? 'TERKUNCI' : isMax ? 'MAX LEVEL' : '$' + cost}
+            </button>
+        `;
+
+        const btn = uCard.querySelector('.upg-btn');
+        btn.onclick = () => {
+            if (canBuy) {
+                saveData.coins -= cost;
+                vehUpgrades[u.id]++;
+                persistSaveData();
+                AudioEngine.playCoin();
+                renderGarageAndMenuUI();
+            }
+        };
+        upgGrid.appendChild(uCard);
+    });
+
+    // 4. Render 4 Pilihan Level
+    const lvlGrid = document.getElementById('levelGrid');
+    lvlGrid.innerHTML = '';
+
+    LEVELS.forEach(l => {
+        const isSelected = saveData.selectedLevel === l.id;
+        const bestDist = saveData.bestDistances[l.id] || 0;
+
+        const lCard = document.createElement('button');
+        lCard.className = `btn-action p-3 rounded-2xl border-2 text-left flex items-center justify-between gap-2 cursor-pointer ${
+            isSelected
+                ? 'bg-amber-500/15 border-amber-400'
+                : 'bg-slate-900/75 border-slate-700/80 hover:border-slate-500'
+        }`;
+
+        lCard.innerHTML = `
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="w-3.5 h-3.5 rounded-full" style="background:${l.groundTopColor}"></span>
+                    <span class="font-display text-sm sm:text-base text-white">${l.name}</span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-0.5">${l.desc}</p>
+            </div>
+            <div class="text-right shrink-0">
+                <div class="text-[10px] text-slate-400 font-bold">REKOR</div>
+                <div class="font-display text-sm text-sky-400">${bestDist}m</div>
+            </div>
+        `;
+
+        lCard.onclick = () => {
+            saveData.selectedLevel = l.id;
+            persistSaveData();
+            applyLevelTheme(l.id);
+            renderGarageAndMenuUI();
+        };
+        lvlGrid.appendChild(lCard);
+    });
+
+    // Update tombol Play jika kendaraan terkunci
+    const playBtn = document.getElementById('btnPlayGame');
+    if (!unlocked) {
+        playBtn.classList.add('opacity-50');
+        playBtn.querySelector('span').innerText = 'BELI KENDARAAN DULU';
+    } else {
+        playBtn.classList.remove('opacity-50');
+        playBtn.querySelector('span').innerText = 'MULAI BALAPAN';
+    }
+}
+
+function startGameSession() {
+    if (!saveData.unlockedVehicles.includes(saveData.selectedVehicle)) return;
+
+    AudioEngine.init();
+    const lvl = LEVELS.find(l => l.id === saveData.selectedLevel) || LEVELS[0];
+    document.getElementById('hudLevelName').innerText = lvl.name.toUpperCase();
+
+    resetRunSession();
+    GameState.mode = 'PLAYING';
+
+    document.getElementById('menuLayer').classList.add('hidden');
+    document.getElementById('pauseLayer').classList.add('hidden');
+    document.getElementById('pauseLayer').classList.remove('flex');
+    document.getElementById('gameOverLayer').classList.add('hidden');
+    document.getElementById('gameOverLayer').classList.remove('flex');
+    document.getElementById('hudLayer').classList.remove('hidden');
+    document.getElementById('hudLayer').classList.add('flex');
+}
+
+function endGame(reasonText) {
+    if (GameState.mode === 'GAMEOVER') return;
+    GameState.mode = 'GAMEOVER';
+    GameState.gasPressed = false;
+    GameState.brakePressed = false;
+    AudioEngine.updateEngine(0, false);
+    AudioEngine.playCrash();
+
+    // Simpan Koin & Rekor Jarak
+    saveData.coins += GameState.sessionCoins;
+    const prevBest = saveData.bestDistances[saveData.selectedLevel] || 0;
+    const newBest = Math.max(prevBest, GameState.distance);
+    saveData.bestDistances[saveData.selectedLevel] = newBest;
+    persistSaveData();
+
+    document.getElementById('goReasonBadge').innerText = reasonText;
+    document.getElementById('goDistance').innerText = GameState.distance;
+    document.getElementById('goBestDistance').innerText = newBest;
+    document.getElementById('goCoins').innerText = GameState.sessionCoins;
+
+    document.getElementById('hudLayer').classList.add('hidden');
+    document.getElementById('hudLayer').classList.remove('flex');
+    document.getElementById('gameOverLayer').classList.remove('hidden');
+    document.getElementById('gameOverLayer').classList.add('flex');
+}
+
+function returnToMainMenu() {
+    GameState.mode = 'MENU';
+    GameState.gasPressed = false;
+    GameState.brakePressed = false;
+    AudioEngine.updateEngine(0, false);
+
+    resetRunSession();
+    renderGarageAndMenuUI();
+
+    document.getElementById('hudLayer').classList.add('hidden');
+    document.getElementById('hudLayer').classList.remove('flex');
+    document.getElementById('pauseLayer').classList.add('hidden');
+    document.getElementById('pauseLayer').classList.remove('flex');
+    document.getElementById('gameOverLayer').classList.add('hidden');
+    document.getElementById('gameOverLayer').classList.remove('flex');
+    document.getElementById('menuLayer').classList.remove('hidden');
+}
+
+// --- 11. EVENT LISTENERS (KEYBOARD & MULTI-TOUCH PEDALS) ---
+function bindControls() {
+    const btnGas = document.getElementById('btnGas');
+    const btnBrake = document.getElementById('btnBrake');
+
+    const setGas = (state) => {
+        GameState.gasPressed = state;
+        btnGas.classList.toggle('pressed', state);
+    };
+    const setBrake = (state) => {
+        GameState.brakePressed = state;
+        btnBrake.classList.toggle('pressed', state);
+    };
+
+    // Touch & Mouse Hold untuk Mobile dan Desktop
+    ['pointerdown', 'touchstart'].forEach(evt => {
+        btnGas.addEventListener(evt, (e) => { e.preventDefault(); setGas(true); });
+        btnBrake.addEventListener(evt, (e) => { e.preventDefault(); setBrake(true); });
+    });
+
+    ['pointerup', 'pointerleave', 'pointercancel', 'touchend', 'touchcancel'].forEach(evt => {
+        btnGas.addEventListener(evt, (e) => { e.preventDefault(); setGas(false); });
+        btnBrake.addEventListener(evt, (e) => { e.preventDefault(); setBrake(false); });
+    });
+
+    // Keyboard Desktop
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'ArrowRight' || e.code === 'KeyD') setGas(true);
+        if (e.code === 'ArrowLeft' || e.code === 'KeyA') setBrake(true);
+        if ((e.code === 'KeyP' || e.code === 'Escape') && GameState.mode === 'PLAYING') {
+            pauseGame();
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        if (e.code === 'ArrowRight' || e.code === 'KeyD') setGas(false);
+        if (e.code === 'ArrowLeft' || e.code === 'KeyA') setBrake(false);
+    });
+
+    // Navigasi UI
+    document.getElementById('btnPlayGame').addEventListener('click', startGameSession);
+    document.getElementById('btnGoRetry').addEventListener('click', startGameSession);
+    document.getElementById('btnGoMenu').addEventListener('click', returnToMainMenu);
+
+    document.getElementById('btnPause').addEventListener('click', pauseGame);
+    document.getElementById('btnResume').addEventListener('click', () => {
+        GameState.mode = 'PLAYING';
+        document.getElementById('pauseLayer').classList.add('hidden');
+        document.getElementById('pauseLayer').classList.remove('flex');
+    });
+    document.getElementById('btnRestartFromPause').addEventListener('click', startGameSession);
+    document.getElementById('btnMenuFromPause').addEventListener('click', returnToMainMenu);
+
+    document.getElementById('btnSoundToggle').addEventListener('click', (e) => {
+        AudioEngine.init();
+        AudioEngine.enabled = !AudioEngine.enabled;
+        e.target.innerText = AudioEngine.enabled ? '🔊 AUDIO: ON' : '🔇 AUDIO: OFF';
+    });
+
+    window.addEventListener('resize', () => {
+        applyAdaptiveResolution();
+        engine.resize();
+    });
+}
+
+function pauseGame() {
+    if (GameState.mode !== 'PLAYING') return;
+    GameState.mode = 'PAUSED';
+    GameState.gasPressed = false;
+    GameState.brakePressed = false;
+    AudioEngine.updateEngine(0, false);
+    document.getElementById('pauseLayer').classList.remove('hidden');
+    document.getElementById('pauseLayer').classList.add('flex');
+}
+
+// --- 12. MAIN RENDER LOOP (TARGET 60 FPS) ---
+window.onload = function () {
+    loadSaveData();
+    initBabylonScene();
+    resetRunSession();
+    renderGarageAndMenuUI();
+    bindControls();
+
+    engine.runRenderLoop(() => {
+        const dt = Math.min(engine.getDeltaTime() * 0.001, 0.033); // Clamped dt untuk stabilitas fisika
+
+        if (GameState.mode === 'PLAYING') {
+            // Sub-stepping fisika (2x per frame) untuk akurasi suspensi & roda pada FPS tinggi/rendah
+            stepPhysics(dt * 0.5);
+            stepPhysics(dt * 0.5);
+            updateWorldAndItems(dt);
+            updateHUD();
+        } else if (GameState.mode === 'MENU') {
+            // Showcase mobil di garasi/bukit awal dengan rotasi kamera ringan
+            const t = performance.now() * 0.001;
+            vehicleRoot.position.set(4, getTerrainHeight(4) + getUpgradedVehicleStats().wheelRadius + 0.25, 0);
+            vehicleRoot.rotation.z = getTerrainSlope(4);
+            camera.position.set(5.2 + Math.sin(t * 0.6) * 1.2, vehicleRoot.position.y + 1.8, -11.5);
+            camera.setTarget(new BABYLON.Vector3(4.5, vehicleRoot.position.y + 0.5, 0));
+        }
+
+        scene.render();
+    });
+};
+</script>
+</body>
+</html>

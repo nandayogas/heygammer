@@ -117,6 +117,14 @@ node tests/e2e.cjs http://localhost:8000/index.html
 
 Screenshot hasil uji disimpan di folder `tests/screenshots/`.
 
+## Game embed & tampilan beranda (v11)
+
+- 6 game HTML mandiri ada di `games/` (Neon Rush, Subway Runner 3D, Hill Climb Adventure, Tropical Kart Racing 3D, Tropical Kart Lite, Neonblast) dan dibuka lewat iframe (`js/games/embed.js`).
+- Beranda hanya menampilkan game `featured: true`. Game lama muncul lewat **Kategori**, **Explore Games**, atau pencarian.
+- Thumbnail animasi tiap game diatur di `js/data/thumbs.js` (CSS murni, gaya di `css/thumbs.css`).
+- Game embed belum melapor skor. Agar masuk leaderboard, panggil `parent.postMessage({ hgScore: skor }, '*')` saat game selesai.
+- Catatan: `tests/e2e.cjs` belum diperbarui untuk game embed.
+
 ## Status katalog
 
 Saat ini **13 game** sudah dibuat dan bisa dimainkan: Memory Challenge, Racing Fever, Tic Tac Toe, Snake Master, 2048 Challenge, Rock Paper Scissors, Space Shooter, Zombie Survival, Football Penalty, Basketball Challenge, Endless Runner, Fruit Match, dan Block Puzzle.
