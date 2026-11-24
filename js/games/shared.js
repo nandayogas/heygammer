@@ -1,6 +1,6 @@
 // js/games/shared.js — helper dan registry runner (dipakai semua file game)
 // js/games.js
-// Enam mini-game yang benar-benar bisa dimainkan.
+// Tiga belas mini-game yang benar-benar bisa dimainkan (lihat js/data/catalog.js).
 // Setiap runner menerima (box, done, ctl) dan boleh mengembalikan fungsi cleanup.
 //   ctl.score(n)    → update skor di header Game Mode
 //   ctl.level(v)    → update level/progres di header Game Mode

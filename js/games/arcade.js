@@ -189,6 +189,26 @@ RUNNERS.fruit = (b, done, ctl) => {
     }
     return hit;
   };
+  // Papan tanpa langkah valid akan membuat pemain terkunci; acak ulang sampai ada langkah.
+  const anyMove = () => {
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) for (const [dr, dc] of [[0, 1], [1, 0]]) {
+      const r2 = r + dr, c2 = c + dc;
+      if (r2 >= N || c2 >= N) continue;
+      [grid[r][c], grid[r2][c2]] = [grid[r2][c2], grid[r][c]];
+      const ok = matches().size > 0;
+      [grid[r][c], grid[r2][c2]] = [grid[r2][c2], grid[r][c]];
+      if (ok) return true;
+    }
+    return false;
+  };
+  const reshuffle = () => {
+    do {
+      grid = Array.from({ length: N }, () => Array.from({ length: N }, rnd));
+      for (let g = 0; matches().size && g < 100; g++) {
+        matches().forEach(k => { const [r, c] = k.split(',').map(Number); grid[r][c] = rnd(); });
+      }
+    } while (!anyMove());
+  };
   const render = () => {
     const box = b.querySelector('.fgrid');
     if (!box) return;
@@ -225,6 +245,10 @@ RUNNERS.fruit = (b, done, ctl) => {
     }
     moves--; ctl.level(`Langkah ${moves}`);
     await resolve(); if (!alive) return;
+    if (!anyMove()) {
+      reshuffle(); render();
+      const info = b.querySelector('.info'); if (info) info.textContent = 'Tidak ada langkah tersisa — papan diacak ulang.';
+    }
     busy = false;
     if (moves <= 0) finish();
   };
@@ -239,10 +263,7 @@ RUNNERS.fruit = (b, done, ctl) => {
     if (Math.abs(r0 - r) + Math.abs(c0 - c) === 1) { trySwap(r0, c0, r, c); return; }
     sel = [r, c]; render();
   };
-  grid = Array.from({ length: N }, () => Array.from({ length: N }, rnd));
-  for (let guard = 0; matches().size && guard < 100; guard++) {
-    matches().forEach(k => { const [r, c] = k.split(',').map(Number); grid[r][c] = rnd(); });
-  }
+  reshuffle();
   ctl.score(0); ctl.level(`Langkah ${moves}`);
   splash(b, 'Fruit Match', 'Tukar buah bersebelahan untuk membuat deret tiga atau lebih. Kombo beruntun memberi poin lebih besar!', () => { started = true; });
   render();

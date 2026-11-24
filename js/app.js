@@ -113,6 +113,13 @@ function renderGames() {
   $$('#catList .cat').forEach(c => c.classList.toggle('on', c.dataset.cat === view.cat));
 }
 
+/* ---------- recently played (dari riwayat localStorage) ---------- */
+function renderRecent() {
+  const list = store.get('recent', []).filter(id => GAMES.some(g => g.id === id)).slice(0, 6).map(id => GAMES.find(g => g.id === id));
+  $('#recent').hidden = !list.length;
+  $('#recentList').innerHTML = list.map(gameCard).join('');
+}
+
 /* ---------- daily challenge ---------- */
 const dailyGame = () => GAMES[Math.floor(Date.now() / 864e5) % GAMES.length];
 function renderDaily() {
@@ -169,7 +176,7 @@ function renderLevel() {
 function toggleFav(id) {
   favs = favs.includes(id) ? favs.filter(x => x !== id) : [...favs, id];
   store.set('fav', favs);
-  renderGames();
+  renderGames(); renderRecent();
   toast(favs.includes(id) ? 'Ditambahkan ke favorit ♥' : 'Dihapus dari favorit');
 }
 function toast(msg) {
@@ -185,6 +192,10 @@ function openGame(id, daily = false) {
   const g = GAMES.find(x => x.id === id);
   if (!g) return;
   current = id; curDaily = daily;
+  const rec = store.get('recent', []).filter(x => x !== id);
+  rec.unshift(id);
+  store.set('recent', rec.slice(0, 8));
+  renderRecent();
   if (cleanup) cleanup();
   $('#gTitle').textContent = g.name;
   $('#gmScore').textContent = 0;
@@ -251,7 +262,10 @@ async function finish(id, score, daily) {
 /* ---------- navigasi ---------- */
 const jump = sel => { const el = $(sel); if (el) el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth' }); };
 function navTo(name, el) {
-  if (el) $$('nav a').forEach(a => a.classList.toggle('active', a === el));
+  if (el) {
+    $$('nav a').forEach(a => a.classList.toggle('active', a === el));
+    el.scrollIntoView({ inline: 'nearest', block: 'nearest' }); // menu bawah di HP ikut bergeser
+  }
   switch (name) {
     case 'home': return scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
     case 'explore': view = { f: 'all', cat: null, q: '' }; $('#q').value = ''; renderGames(); return jump('#games');
@@ -318,9 +332,9 @@ document.addEventListener('click', e => {
     case 'pauseBtn': return setPaused(!paused);
     case 'resume': return setPaused(false);
     case 'reset':
-      store.set('fav', []); store.set('history', []); store.set('best', {}); store.set('daily', ''); store.set('last', '');
+      store.set('fav', []); store.set('history', []); store.set('best', {}); store.set('daily', ''); store.set('last', ''); store.set('recent', []);
       favs = [];
-      renderGames(); renderDaily(); renderLevel(); renderLeaderboard();
+      renderGames(); renderRecent(); renderDaily(); renderLevel(); renderLeaderboard();
       $('#histInfo').textContent = 'Riwayat tersimpan: 0 permainan';
       return toast('Data lokal direset');
   }
@@ -335,6 +349,7 @@ $('#q').addEventListener('input', e => { view.q = e.target.value.trim().toLowerC
 renderHero();
 renderCats();
 renderGames();
+renderRecent();
 renderDaily();
 renderLevel();
 renderLeaderboard();

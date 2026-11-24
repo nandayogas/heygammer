@@ -1,6 +1,6 @@
 # HEYGAMMER 🎮
 
-**PLAY. EXPLORE. DOMINATE.** — website gaming dengan intro 3D, dashboard neon, enam mini-game, dan leaderboard online.
+**PLAY. EXPLORE. DOMINATE.** — website gaming dengan intro 3D, dashboard neon, 13 mini-game yang bisa dimainkan, dan leaderboard online.
 
 ## Struktur proyek
 
@@ -23,6 +23,10 @@ heygammer/
 │   │   └── more.js       # Space Shooter, Zombie Survival, Block Puzzle
 │   └── data/
 │       └── catalog.js    # daftar GAMES dan CATS (tambah game baru di sini)
+├── termux/
+│   └── setup.sh       # jalankan server lokal di Android (Termux)
+├── tests/
+│   └── e2e.cjs       # uji otomatis: tombol, navigasi, game sampai selesai, tampilan Android
 └── README.md
 ```
 
@@ -38,6 +42,21 @@ python -m http.server 8000
 ```
 
 Lalu buka `http://localhost:8000`.
+
+## Menjalankan di Android (Termux)
+
+1. Pasang **Termux** dan **Chrome** dari F-Droid atau Play Store.
+2. Salin folder proyek ke penyimpanan Termux (misalnya lewat `git clone` atau unzip di `~`).
+3. Di Termux, jalankan:
+
+```bash
+cd heygammer
+bash termux/setup.sh          # port 8080; atau: bash termux/setup.sh --port 9000
+```
+
+4. Buka `http://127.0.0.1:8080` di Chrome. Biarkan Termux tetap terbuka saat bermain.
+
+Catatan: Three.js dan Firebase dimuat dari internet, jadi HP harus terhubung. Skrip ini hanya menjalankan server lokal; `tests/e2e.cjs` tidak dijalankan di Termux.
 
 ## Mengatur Firebase (opsional, untuk leaderboard online)
 
@@ -82,8 +101,27 @@ service cloud.firestore {
 - **REPLAY INTRO** di menu Settings.
 - Hormat terhadap *reduced motion* dari sistem atau dari Settings.
 - Pencarian, filter (All, Popular, New, Top Rated), kategori, dan favorit tersimpan di `localStorage`.
+- Recently Played: game terakhir yang dibuka, tersimpan di localStorage.
 - Daily challenge dengan countdown dan status selesai per hari.
 - Leaderboard online (Firebase) atau lokal bila Firebase belum diatur.
+
+## Pengujian otomatis (Tahap 8)
+
+Uji `tests/e2e.cjs` memeriksa tombol dan navigasi, membuka dan memainkan setiap game sampai layar hasil, serta tampilan Android (portrait dan landscape).
+
+```bash
+npm i -D playwright
+npx playwright install chromium
+node tests/e2e.cjs http://localhost:8000/index.html
+```
+
+Screenshot hasil uji disimpan di folder `tests/screenshots/`.
+
+## Status katalog
+
+Saat ini **13 game** sudah dibuat dan bisa dimainkan: Memory Challenge, Racing Fever, Tic Tac Toe, Snake Master, 2048 Challenge, Rock Paper Scissors, Space Shooter, Zombie Survival, Football Penalty, Basketball Challenge, Endless Runner, Fruit Match, dan Block Puzzle.
+
+Tujuh game dari daftar 20 belum dibuat dan **belum** ditampilkan di katalog: Jungle Adventure, Super Platformer, Drift Racing, Tower Defense, Bubble Shooter, Chess Challenge, dan Car Parking Master.
 
 ## Roadmap yang disarankan
 
