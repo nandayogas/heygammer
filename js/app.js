@@ -33,6 +33,9 @@ const GAMES = [
   { id: 'basket', name: 'Basketball Challenge', game: 'basket', emoji: '🏀', cats: ['Sports', 'Casual'], isNew: true, bg: 'linear-gradient(135deg,#9a3412,#7c2d12)' },
   { id: 'runner', name: 'Endless Runner', game: 'runner', emoji: '🏃', cats: ['Arcade', 'Action', 'Platform'], isNew: true, bg: 'linear-gradient(135deg,#0c4a6e,#581c87)' },
   { id: 'fruit', name: 'Fruit Match', game: 'fruit', emoji: '🍉', cats: ['Puzzle', 'Casual'], isNew: true, bg: 'linear-gradient(135deg,#be185d,#166534)' },
+  { id: 'shooter', name: 'Space Shooter', game: 'shooter', emoji: '🚀', cats: ['Shooting', 'Action', 'Arcade'], isNew: true, bg: 'linear-gradient(135deg,#1e1b4b,#0e7490)' },
+  { id: 'zombie', name: 'Zombie Survival', game: 'zombie', emoji: '🧟', cats: ['Shooting', 'Action', 'Adventure'], isNew: true, bg: 'linear-gradient(135deg,#14532d,#451a03)' },
+  { id: 'block', name: 'Block Puzzle', game: 'block', emoji: '🧱', cats: ['Puzzle', 'Casual'], isNew: true, bg: 'linear-gradient(135deg,#1e3a8a,#7c3aed)' },
 ];
 const CATS = [['Arcade', '🕹️'], ['Action', '💥'], ['Racing', '🏎️'], ['Adventure', '🧭'], ['Puzzle', '🧩'],
   ['Sports', '⚽'], ['Strategy', '♞'], ['Simulation', '✈️'], ['Multiplayer', '👥'], ['Casual', '☕'],
