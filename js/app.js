@@ -30,7 +30,9 @@ const GAMES = [
   { id: '2048', name: '2048 Challenge', game: '2048', emoji: '🔢', rating: 4.8, players: '1.9M', cats: ['Puzzle', 'Strategy'], bg: 'linear-gradient(135deg,#78350f,#4c1d95)' },
   { id: 'rps', name: 'Rock Paper Scissors', game: 'rps', emoji: '✊', rating: 4.7, players: '1.6M', cats: ['Sports', 'Arcade'], isNew: true, bg: 'linear-gradient(135deg,#312e81,#831843)' },
 ];
-const CATS = [['Arcade', '🕹️'], ['Action', '💥'], ['Racing', '🏎️'], ['Adventure', '🧭'], ['Puzzle', '🧩'], ['Sports', '⚽'], ['Strategy', '♞'], ['Simulation', '✈️']];
+const CATS = [['Arcade', '🕹️'], ['Action', '💥'], ['Racing', '🏎️'], ['Adventure', '🧭'], ['Puzzle', '🧩'],
+  ['Sports', '⚽'], ['Strategy', '♞'], ['Simulation', '✈️'], ['Multiplayer', '👥'], ['Casual', '☕'],
+  ['Shooting', '🎯'], ['Fighting', '🥊'], ['Platform', '🍄'], ['Tower Defense', '🏰'], ['Board Games', '🎲']];
 const SLIDES = [
   { t: 'HEYGAMMER', s: 'PLAY. EXPLORE. DOMINATE.', d: 'Discover amazing games, challenge yourself, and become a legend!' },
   { t: 'DAILY CHALLENGE', s: 'NEW EVERY DAY', d: "Complete today's challenge and claim your rewards." },
@@ -83,8 +85,10 @@ function restartHeroTimer() {
 
 /* ---------- kategori & game ---------- */
 function renderCats() {
-  $('#catList').innerHTML = CATS.map(([n, i]) =>
-    `<button class="cat glass" data-cat="${esc(n)}"><span class="ic">${i}</span>${esc(n)}</button>`).join('');
+  $('#catList').innerHTML = CATS.map(([n, i]) => {
+    const cnt = GAMES.filter(g => g.cats.includes(n)).length;
+    return `<button class="cat glass" data-cat="${esc(n)}"><span class="ic">${i}</span>${esc(n)}<small class="ccount">${cnt ? cnt + ' game' : 'Segera hadir'}</small></button>`;
+  }).join('');
 }
 
 function gameCard(g) {
@@ -106,11 +110,12 @@ function renderGames() {
   if (view.f === 'popular') list = [...list].sort((a, b) => parseFloat(b.players) - parseFloat(a.players));
   if (view.f === 'top') list = [...list].sort((a, b) => b.rating - a.rating);
   if (view.f === 'new') list = list.filter(g => g.isNew);
+  if (view.f === 'fav') list = list.filter(g => favs.includes(g.id));
 
   $('#gameList').innerHTML = list.length
     ? list.map(gameCard).join('')
-    : '<p class="meta">Tidak ada game yang cocok. Coba kata lain atau kategori lain.</p>';
-  $('#gHint').textContent = view.cat ? `Kategori: ${view.cat}`
+    : `<p class="meta">${view.f === 'fav' ? 'Belum ada favorit. Tekan ♡ pada game untuk menambahkannya.' : view.cat ? `Kategori ${esc(view.cat)} belum punya game. Segera hadir!` : 'Tidak ada game yang cocok. Coba kata lain atau kategori lain.'}</p>`;
+  $('#gHint').textContent = view.f === 'fav' ? 'Favorit kamu' : view.cat ? `Kategori: ${view.cat}`
     : view.q ? `Hasil untuk "${view.q}"` : 'Most popular games right now';
   $$('#pills .pill').forEach(p => p.classList.toggle('on', p.dataset.f === view.f));
   $$('#catList .cat').forEach(c => c.classList.toggle('on', c.dataset.cat === view.cat));
@@ -259,7 +264,8 @@ function navTo(name, el) {
     case 'home': return scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
     case 'explore': view = { f: 'all', cat: null, q: '' }; $('#q').value = ''; renderGames(); return jump('#games');
     case 'cats': return jump('#cats');
-    case 'trending': view.f = 'popular'; renderGames(); return jump('#games');
+    case 'trending': case 'popular': view.f = 'popular'; renderGames(); return jump('#games');
+    case 'fav': view.f = 'fav'; view.cat = null; renderGames(); return jump('#games');
     case 'new': view.f = 'new'; renderGames(); return jump('#games');
     case 'lb': return jump('#lbBox');
     case 'daily': return jump('#daily');

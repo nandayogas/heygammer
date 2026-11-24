@@ -76,13 +76,33 @@ function neonRing(radius, tube, color, opacity) {
   );
 }
 
+function makeRobot() {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: 0x67e8f9, emissive: 0x0e7490, emissiveIntensity: 0.6, metalness: 0.5, roughness: 0.3 });
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xf472b6 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.4, 1), mat);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(1, 0.8, 0.9), mat);
+  head.position.y = 1.1;
+  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 8), eyeMat);
+  eyeL.position.set(-0.25, 1.15, 0.46);
+  const eyeR = eyeL.clone();
+  eyeR.position.x = 0.25;
+  const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.4, 6), mat);
+  antenna.position.y = 1.7;
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 8), eyeMat);
+  tip.position.y = 1.92;
+  g.add(body, head, eyeL, eyeR, antenna, tip);
+  return g;
+}
+
 export function runIntro(canvas, onDone) {
   const tag = canvas.parentElement.querySelector('.intro-tag');
 
   // Mode reduced motion: langsung selesai.
   if (reduce) {
-    const t = setTimeout(onDone, 300);
-    return () => clearTimeout(t);
+    if (tag) { tag.style.transition = 'opacity .6s'; tag.style.opacity = '1'; }
+    const t = setTimeout(onDone, 1800);
+    return () => { clearTimeout(t); if (tag) tag.style.opacity = '0'; };
   }
 
   // Tanpa WebGL, lewati intro dan jangan biarkan overlay hitam menutupi situs.
@@ -171,11 +191,11 @@ export function runIntro(canvas, onDone) {
   );
 
   /* ---------- objek gaming mengorbit ---------- */
-  const glowColors = [CYAN, PINK, GOLD, PURPLE, GOLD];
-  const props = ['controller', 'joystick', 'car', 'puzzle', 'trophy'].map((k, i) => {
+  const glowColors = [CYAN, PINK, GOLD, PURPLE, BLUE, GOLD];
+  const props = ['controller', 'joystick', 'car', 'robot', 'puzzle', 'trophy'].map((k, i) => {
     const holder = new THREE.Group();
-    holder.add(makeProp(k), glowSprite(glowColors[i], 3.2, 0.5));
-    holder.userData.a = (i / 5) * Math.PI * 2;
+    holder.add(k === 'robot' ? makeRobot() : makeProp(k), glowSprite(glowColors[i], 3.2, 0.5));
+    holder.userData.a = (i / 6) * Math.PI * 2;
     holder.scale.setScalar(0.001);
     scene.add(holder);
     return holder;
@@ -254,7 +274,7 @@ export function runIntro(canvas, onDone) {
     });
 
     // 4. Kamera mengorbit ±290°, lalu mendorong masuk ke logo
-    const orbit = ease(t / 5.2) * Math.PI * 2 * 0.9;
+    const orbit = ease(t / 5.2) * Math.PI * 2;
     const dist = t < 5.2 ? 17 - ease((t - 2) / 3) * 3 : 14 - ease((t - 5.2) / 1.2) * 5;
     cam.position.set(Math.sin(orbit) * dist, 1.8 + Math.sin(t * 0.7) * 0.4, Math.cos(orbit) * dist);
     cam.lookAt(0, 0, 0);
@@ -269,6 +289,10 @@ export function runIntro(canvas, onDone) {
 
     // 6. Tagline muncul lalu hilang
     if (tag) tag.style.opacity = String(ease((t - 3.4) / 0.7) * (1 - ease((t - 6.2) / 0.6)));
+
+    // 7. Portal membesar hingga menutupi layar, lalu berubah menjadi dashboard
+    const open = t > DUR - 1.1 ? ease((t - (DUR - 1.1)) / 1.1) : 0;
+    if (open > 0) portal.scale.setScalar(1 + open * 14);
 
     lights[0].intensity = 60 + Math.sin(t * 3) * 10;
     r.render(scene, cam);

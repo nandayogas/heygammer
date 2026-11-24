@@ -238,3 +238,6 @@ main,.content,.dash,.hero{min-width:0;max-width:100%}
   .dots { bottom: 10px; }
   .slide { padding-bottom: 46px; }
 }
+
+/* ===== Katalog kategori ===== */
+.cat .ccount{display:block;font-size:11px;color:var(--m);font-weight:500;margin-top:2px}
