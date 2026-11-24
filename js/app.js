@@ -29,6 +29,10 @@ const GAMES = [
   { id: 'snake', name: 'Snake Master', game: 'snake', emoji: '🐍', rating: 4.8, players: '1.2M', cats: ['Arcade', 'Action'], bg: 'linear-gradient(135deg,#14532d,#4c1d95)' },
   { id: '2048', name: '2048 Challenge', game: '2048', emoji: '🔢', rating: 4.8, players: '1.9M', cats: ['Puzzle', 'Strategy'], bg: 'linear-gradient(135deg,#78350f,#4c1d95)' },
   { id: 'rps', name: 'Rock Paper Scissors', game: 'rps', emoji: '✊', rating: 4.7, players: '1.6M', cats: ['Sports', 'Arcade'], isNew: true, bg: 'linear-gradient(135deg,#312e81,#831843)' },
+  { id: 'penalty', name: 'Football Penalty', game: 'penalty', emoji: '⚽', cats: ['Sports', 'Arcade'], isNew: true, bg: 'linear-gradient(135deg,#166534,#1e3a8a)' },
+  { id: 'basket', name: 'Basketball Challenge', game: 'basket', emoji: '🏀', cats: ['Sports', 'Casual'], isNew: true, bg: 'linear-gradient(135deg,#9a3412,#7c2d12)' },
+  { id: 'runner', name: 'Endless Runner', game: 'runner', emoji: '🏃', cats: ['Arcade', 'Action', 'Platform'], isNew: true, bg: 'linear-gradient(135deg,#0c4a6e,#581c87)' },
+  { id: 'fruit', name: 'Fruit Match', game: 'fruit', emoji: '🍉', cats: ['Puzzle', 'Casual'], isNew: true, bg: 'linear-gradient(135deg,#be185d,#166534)' },
 ];
 const CATS = [['Arcade', '🕹️'], ['Action', '💥'], ['Racing', '🏎️'], ['Adventure', '🧭'], ['Puzzle', '🧩'],
   ['Sports', '⚽'], ['Strategy', '♞'], ['Simulation', '✈️'], ['Multiplayer', '👥'], ['Casual', '☕'],
@@ -98,7 +102,7 @@ function gameCard(g) {
     ${g.isNew ? '<i class="tag">NEW</i>' : ''}
     <button class="fav ${fav ? 'on' : ''}" data-fav="${g.id}" aria-label="Favorit">${fav ? '♥' : '♡'}</button>
     <h3>${esc(g.name)}</h3>
-    <p class="meta">⭐ ${g.rating} · 👥 ${g.players} pemain</p>
+    <p class="meta">${g.rating ? `⭐ ${g.rating}` : 'Baru'}${g.players ? ` · 👥 ${g.players} pemain` : ''}</p>
     <button class="neon-btn small" data-play="${g.id}">▶ Play Now</button>
   </article>`;
 }
@@ -107,8 +111,8 @@ function renderGames() {
   let list = GAMES.filter(g =>
     (!view.cat || g.cats.includes(view.cat)) &&
     (!view.q || g.name.toLowerCase().includes(view.q) || g.cats.some(c => c.toLowerCase().includes(view.q))));
-  if (view.f === 'popular') list = [...list].sort((a, b) => parseFloat(b.players) - parseFloat(a.players));
-  if (view.f === 'top') list = [...list].sort((a, b) => b.rating - a.rating);
+  if (view.f === 'popular') list = [...list].sort((a, b) => (parseFloat(b.players) || 0) - (parseFloat(a.players) || 0));
+  if (view.f === 'top') list = [...list].sort((a, b) => (b.rating || 0) - (a.rating || 0));
   if (view.f === 'new') list = list.filter(g => g.isNew);
   if (view.f === 'fav') list = list.filter(g => favs.includes(g.id));
 

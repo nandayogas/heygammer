@@ -241,3 +241,10 @@ main,.content,.dash,.hero{min-width:0;max-width:100%}
 
 /* ===== Katalog kategori ===== */
 .cat .ccount{display:block;font-size:11px;color:var(--m);font-weight:500;margin-top:2px}
+
+/* ===== Game baru: canvas & grid ===== */
+.gcanvas{display:block;width:min(100%,360px);height:auto;border-radius:14px;border:2px solid var(--p);background:#0b0618;margin:auto;box-shadow:0 0 22px rgba(168,85,247,.5)}
+.pad button.on{background:rgba(34,211,238,.5);box-shadow:0 0 12px var(--c)}
+.fgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;width:min(100%,360px);margin:auto}
+.fgrid button{aspect-ratio:1;font-size:clamp(20px,6vw,26px);border-radius:10px;background:rgba(124,58,237,.3)}
+.fgrid button.sel{outline:2px solid var(--c);box-shadow:0 0 14px var(--c)}
