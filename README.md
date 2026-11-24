@@ -6,24 +6,27 @@
 
 ```
 heygammer/
-├── index.html          # Markup (struktur halaman)
+├── index.html
 ├── css/
-│   └── styles.css      # Seluruh tampilan (neon, glassmorphism, responsif)
+│   ├── styles.css        # dashboard, sidebar, hero, header
+│   └── game.css          # tampilan game & Game Mode (responsif)
 ├── js/
-│   ├── app.js          # Logika dashboard: hero, kategori, pencarian, favorit, daily challenge, modal
-│   ├── games.js        # Enam mini-game: Memory, Tic Tac Toe, Snake, 2048, RPS, Reaction
-│   ├── three-scene.js  # Three.js: intro 3D 360° dan latar 3D hero
-│   └── firebase.js     # Backend Firebase Firestore (leaderboard online)
+│   ├── app.js            # logika dashboard (navigasi, favorit, leaderboard, dll)
+│   ├── intro.js          # intro 3D 360°
+│   ├── three-scene.js    # latar 3D hero dan objek 3D bersama
+│   ├── firebase.js       # backend Firebase (leaderboard online)
+│   ├── games.js          # dispatcher: menjalankan runner berdasarkan key game
+│   ├── games/
+│   │   ├── shared.js     # helper bersama + registry RUNNERS
+│   │   ├── classic.js    # Memory, Tic Tac Toe, Snake, 2048, RPS, Racing
+│   │   ├── arcade.js     # Football Penalty, Basketball, Endless Runner, Fruit Match
+│   │   └── more.js       # Space Shooter, Zombie Survival, Block Puzzle
+│   └── data/
+│       └── catalog.js    # daftar GAMES dan CATS (tambah game baru di sini)
 └── README.md
 ```
 
-| Bagian | File | Catatan |
-|---|---|---|
-| Tampilan | `css/styles.css` | Ubah warna di `:root` untuk mengganti tema |
-| 3D | `js/three-scene.js` | Menggunakan Three.js 0.160 dari CDN (lihat `index.html`) |
-| Game | `js/games.js` | Tambah game baru dengan `RUNNERS.namaGame = (box, done) => {...}` |
-| Backend | `js/firebase.js` | Koleksi Firestore: `scores` |
-| Logika UI | `js/app.js` | Daftar game ada di konstanta `GAMES` |
+**Menambah game baru:** tulis runner di `js/games/` (file baru jika file yang ada sudah penuh, lalu import di `js/games.js`), lalu tambahkan entri di `js/data/catalog.js` dengan `game` yang sama dengan key runner.
 
 ## Menjalankan secara lokal
 
