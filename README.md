@@ -1,0 +1,94 @@
+# HEYGAMMER 🎮
+
+**PLAY. EXPLORE. DOMINATE.** — website gaming dengan intro 3D, dashboard neon, enam mini-game, dan leaderboard online.
+
+## Struktur proyek
+
+```
+heygammer/
+├── index.html          # Markup (struktur halaman)
+├── css/
+│   └── styles.css      # Seluruh tampilan (neon, glassmorphism, responsif)
+├── js/
+│   ├── app.js          # Logika dashboard: hero, kategori, pencarian, favorit, daily challenge, modal
+│   ├── games.js        # Enam mini-game: Memory, Tic Tac Toe, Snake, 2048, RPS, Reaction
+│   ├── three-scene.js  # Three.js: intro 3D 360° dan latar 3D hero
+│   └── firebase.js     # Backend Firebase Firestore (leaderboard online)
+└── README.md
+```
+
+| Bagian | File | Catatan |
+|---|---|---|
+| Tampilan | `css/styles.css` | Ubah warna di `:root` untuk mengganti tema |
+| 3D | `js/three-scene.js` | Menggunakan Three.js 0.160 dari CDN (lihat `index.html`) |
+| Game | `js/games.js` | Tambah game baru dengan `RUNNERS.namaGame = (box, done) => {...}` |
+| Backend | `js/firebase.js` | Koleksi Firestore: `scores` |
+| Logika UI | `js/app.js` | Daftar game ada di konstanta `GAMES` |
+
+## Menjalankan secara lokal
+
+Modul ES dan Three.js tidak bisa dibuka lewat `file://`, jadi jalankan server lokal:
+
+```bash
+cd heygammer
+python -m http.server 8000
+```
+
+Lalu buka `http://localhost:8000`.
+
+## Mengatur Firebase (opsional, untuk leaderboard online)
+
+Tanpa langkah ini, website tetap berjalan dan leaderboard memakai data lokal.
+
+1. Buka [console.firebase.google.com](https://console.firebase.google.com) dan buat project baru.
+2. Di menu **Build → Firestore Database**, klik **Create database** (mode production).
+3. Di **Project settings → Your apps**, klik ikon **Web (</>)**, lalu salin objek `firebaseConfig`.
+4. Tempel nilainya ke `js/firebase.js`, menggantikan placeholder `YOUR_...`.
+5. Di **Firestore → Rules**, pasang aturan berikut lalu **Publish**:
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /scores/{id} {
+      allow read: if true;
+      allow create: if request.resource.data.score is int
+        && request.resource.data.score >= 0
+        && request.resource.data.score <= 100000
+        && request.resource.data.game is string
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 20;
+      allow update, delete: if false;
+    }
+  }
+}
+```
+
+> **Catatan keamanan:** aturan di atas membolehkan siapa pun menulis skor tanpa login, sehingga skor bisa dipalsukan. Untuk proyek yang lebih besar, tambahkan **Firebase Anonymous Auth** dan **App Check**, lalu validasi skor di Cloud Functions.
+
+## Deploy ke GitHub Pages
+
+1. Buat repository baru di GitHub, misalnya `heygammer`, lalu upload semua file di atas.
+2. Buka **Settings → Pages**.
+3. Di bagian **Build and deployment**, pilih **Deploy from a branch**, branch `main`, folder `/ (root)`.
+4. Setelah beberapa menit, website tersedia di `https://username.github.io/heygammer/`.
+
+## Fitur
+
+- Intro 3D sinematik (±7 detik) dengan tombol **SKIP INTRO**, tampil hanya pada kunjungan pertama.
+- **REPLAY INTRO** di menu Settings.
+- Hormat terhadap *reduced motion* dari sistem atau dari Settings.
+- Pencarian, filter (All, Popular, New, Top Rated), kategori, dan favorit tersimpan di `localStorage`.
+- Daily challenge dengan countdown dan status selesai per hari.
+- Leaderboard online (Firebase) atau lokal bila Firebase belum diatur.
+
+## Roadmap yang disarankan
+
+- Ganti emoji ikon dengan model GLB (GLTFLoader) untuk controller, piala, dan robot.
+- Tambah game balap sungguhan untuk menggantikan Racing Fever.
+- Login Google opsional untuk menyimpan profil di seluruh perangkat.
+- Pindahkan validasi skor ke Cloud Functions.
+
+## Lisensi
+
+Ilustrasi dan kode dibuat khusus untuk proyek ini. Sesuaikan lisensi sebelum dipublikasikan.

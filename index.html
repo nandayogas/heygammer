@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="HEYGAMMER — PLAY. EXPLORE. DOMINATE. Gaming dashboard dengan mini-game dan leaderboard.">
+<title>HEYGAMMER — PLAY. EXPLORE. DOMINATE.</title>
+<link rel="stylesheet" href="css/styles.css">
+<!-- Three.js dimuat dari CDN. Versi dikunci agar stabil. -->
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+</head>
+<body>
+<canvas id="particles"></canvas>
+
+<!-- Intro 3D (dijalankan oleh js/three-scene.js) -->
+<div id="intro">
+  <canvas id="introCanvas"></canvas>
+  <button id="skipIntro" class="ghost-btn">SKIP INTRO</button>
+</div>
+
+<div class="app">
+  <aside>
+    <div class="logo"><div class="ctl">🎮</div><div class="name">HEY<b>GAMMER</b></div></div>
+    <nav id="nav">
+      <a data-nav="home" class="active"><span class="i">🏠</span>Home</a>
+      <a data-nav="explore"><span class="i">🎮</span>Explore Games</a>
+      <a data-nav="cats"><span class="i">🧩</span>Categories</a>
+      <a data-nav="trending"><span class="i">🔥</span>Trending</a>
+      <a data-nav="new"><span class="i">⭐</span>New Releases</a>
+      <a data-nav="lb"><span class="i">🏆</span>Leaderboard</a>
+      <a data-nav="daily"><span class="i">📅</span>Daily Challenge</a>
+      <a data-nav="about"><span class="i">ℹ️</span>About</a>
+    </nav>
+    <div class="promo glass">
+      <div class="crown">👑</div>
+      <h4>Join the<br>Gaming Universe!</h4>
+      <p>Play more, earn points, and be a legend!</p>
+      <button class="gold-btn" data-nav="explore">Explore Now →</button>
+    </div>
+    <div class="gameon">Game On!</div>
+  </aside>
+
+  <main>
+    <header>
+      <div class="search">
+        <input id="q" placeholder="Search your favorite games..." aria-label="Search games">
+        <button id="qBtn" aria-label="Search">🔍</button>
+      </div>
+      <button class="icon-btn" id="bell" aria-label="Notifications">🔔</button>
+      <button class="icon-btn" id="gear" aria-label="Settings">⚙️</button>
+      <div class="guest glass">
+        <span class="crown">👑</span>
+        <div><b>Guest Player</b><br><small style="color:var(--m)">Lv.<span id="lvl">1</span></small></div>
+        <span class="av">🕶️</span>
+      </div>
+    </header>
+
+    <!-- Hero: 3D di belakang (js/three-scene.js), slide teks di depan (js/app.js) -->
+    <section class="hero" id="hero">
+      <div id="hero3d" class="hero-3d"></div>
+      <button class="arrow l" data-prev aria-label="Previous">‹</button>
+      <button class="arrow r" data-next aria-label="Next">›</button>
+      <div class="dots" id="dots"></div>
+    </section>
+
+    <div class="content">
+      <div style="min-width:0">
+        <section id="cats">
+          <div class="sec-h">
+            <div><h2>🎮 Game Categories</h2><small>Find your favorite category</small></div>
+            <button class="outline-btn" data-nav="explore">View All →</button>
+          </div>
+          <div class="cats" id="catList"></div>
+        </section>
+
+        <section id="games" style="margin-top:22px">
+          <div class="sec-h">
+            <div><h2>🔥 Featured Games</h2><small id="gHint">Most popular games right now</small></div>
+            <div class="pills" id="pills">
+              <button class="pill on" data-f="all">All</button>
+              <button class="pill" data-f="popular">Popular</button>
+              <button class="pill" data-f="new">New</button>
+              <button class="pill" data-f="top">Top Rated</button>
+            </div>
+          </div>
+          <div class="games" id="gameList"></div>
+        </section>
+      </div>
+
+      <section class="glass daily" id="daily">
+        <h2>📅 Daily Challenge</h2>
+        <p class="meta">Complete today's challenge and get amazing rewards!</p>
+        <div class="chest">🎁</div>
+        <p id="dailyText" class="meta"></p>
+        <div class="cd" id="cd">--:--:--</div>
+        <button class="gold-btn" id="joinDaily">Join Challenge →</button>
+      </section>
+    </div>
+
+    <section class="dash">
+      <div class="glass panel" id="lbBox">
+        <div class="sec-h">
+          <div><h2>🏆 Leaderboard</h2><small id="lbSource">Memuat…</small></div>
+        </div>
+        <ul class="lb" id="lbList"></ul>
+      </div>
+      <div class="glass reward">
+        <h3>WIN BIG<br>WITH HEYGAMMER!</h3>
+        <div class="gift">🎁</div>
+        <p class="meta">Play more, earn points, and unlock exclusive items!</p>
+        <button class="neon-btn small" id="learn" style="width:auto">Learn More →</button>
+      </div>
+      <div class="glass panel">
+        <div class="sec-h">
+          <div><h2>📰 Latest News</h2><small>Stay updated with the latest news</small></div>
+          <button class="outline-btn" id="news">View All →</button>
+        </div>
+        <div class="news">
+          <div class="nthumb">🎮</div>
+          <div><b>New Games Are Here!</b><p>Explore 6 exciting new games in HEYGAMMER now!</p><time>Nov 13, 2025</time></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Modal permainan -->
+<div class="modal" id="gm">
+  <div class="mbox glass">
+    <div class="mh">
+      <h2 id="gTitle"></h2>
+      <div style="display:flex;gap:8px">
+        <button class="ghost-btn" id="restart">↻ Restart</button>
+        <button class="ghost-btn" data-close="gm">🏠 Dashboard</button>
+      </div>
+    </div>
+    <div id="gameBox"></div>
+    <div class="result" id="result">
+      <h3>🏁 Permainan Selesai!</h3>
+      <p>Skor: <b id="resScore"></b></p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+        <button class="neon-btn" id="again">↻ Main Lagi</button>
+        <button class="ghost-btn" data-close="gm">Kembali ke Dashboard</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal settings -->
+<div class="modal" id="settings">
+  <div class="mbox glass">
+    <div class="mh"><h2>⚙️ Settings</h2><button class="ghost-btn" data-close="settings">✕</button></div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="neon-btn" id="replay">🎬 REPLAY INTRO</button>
+      <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="reduceToggle"> Kurangi animasi (reduced motion)</label>
+      <p class="meta" id="histInfo"></p>
+      <button class="ghost-btn" id="reset">Reset favorit & riwayat</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal about -->
+<div class="modal" id="about">
+  <div class="mbox glass">
+    <div class="mh"><h2>ℹ️ About HEYGAMMER</h2><button class="ghost-btn" data-close="about">✕</button></div>
+    <p>HEYGAMMER adalah dunia game ringan yang bisa dimainkan tanpa login. Skor terbaik dihitung sebagai poin dan dikirim ke leaderboard jika Firebase sudah diatur. Favorit dan riwayat disimpan di perangkatmu.</p>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
