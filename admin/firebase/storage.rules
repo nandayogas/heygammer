@@ -1,0 +1,40 @@
+rules_version = '2';
+// HEYGAMMER Admin Studio — Storage Rules.
+// ZIP game tidak pernah ditulis langsung oleh klien; ekstraksi dilakukan Cloud Function.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isStaff() {
+      return request.auth != null
+        && firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
+    }
+
+    // Upload ZIP sementara: hanya staff, maks 50 MB, tipe zip.
+    match /incoming/{uid}/{file} {
+      allow read: if false;
+      allow write: if isStaff()
+        && request.auth.uid == uid
+        && request.resource.size < 50 * 1024 * 1024
+        && request.resource.contentType.matches('application/(zip|x-zip-compressed)');
+    }
+
+    // Game hasil ekstraksi: publik baca, tidak ada yang bisa tulis dari klien.
+    match /games/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Gambar (thumbnail, banner, logo): publik baca, staff tulis, maks 5 MB, hanya gambar.
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow write: if isStaff()
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if isStaff();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>HEYGAMMER Admin Studio</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23657DFF'/%3E%3Ctext x='16' y='22' font-size='16' font-family='Arial' font-weight='700' text-anchor='middle' fill='white'%3EH%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+<!-- LOGIN -->
+<section id="login" class="login" hidden>
+  <div class="login-card card">
+    <div class="brand-lg"><div class="logo-mark">H</div><div><b>HEYGAMMER</b><small>ADMIN STUDIO</small></div></div>
+    <p class="tagline">CONTROL YOUR GAME UNIVERSE</p>
+    <div class="chip demo" id="loginMode">MODE DEMO</div>
+    <form id="loginForm" class="stack" autocomplete="on">
+      <label>Email<input id="lEmail" type="email" name="email" required autocomplete="username" placeholder="admin@heygammer.demo"></label>
+      <label>Kata sandi<input id="lPass" type="password" name="password" required autocomplete="current-password" placeholder="demo123"></label>
+      <p id="loginErr" class="err-text" role="alert"></p>
+      <button id="loginBtn" class="btn btn-primary btn-block" type="submit">Masuk ke Studio</button>
+    </form>
+    <div class="demo-accounts" id="demoAccounts">
+      <small class="muted">Akun demo (kata sandi: demo123)</small>
+      <div class="chips">
+        <button class="btn btn-ghost btn-sm" type="button" data-demo="superadmin@heygammer.demo">Super Admin</button>
+        <button class="btn btn-ghost btn-sm" type="button" data-demo="admin@heygammer.demo">Admin</button>
+        <button class="btn btn-ghost btn-sm" type="button" data-demo="editor@heygammer.demo">Editor</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- APP -->
+<div id="app" class="app" hidden>
+  <aside class="sidebar" id="sidebar" aria-label="Navigasi utama">
+    <div class="brand">
+      <div class="logo-mark">H</div>
+      <div class="brand-text"><b>HEYGAMMER</b><small>STUDIO</small></div>
+      <button class="btn-icon" id="collapseBtn" type="button" aria-label="Perkecil sidebar"><i data-lucide="panel-left-close"></i></button>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="sb-foot">
+      <div class="me"><span class="avatar" id="meAvatarSb"></span><div><b id="meName"></b><small class="muted" id="meRole"></small></div></div>
+      <span class="chip demo">DEMO</span>
+      <p class="muted small">CONTROL YOUR GAME UNIVERSE</p>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="btn-icon menu-btn" id="menuBtn" type="button" aria-label="Buka menu"><i data-lucide="menu"></i></button>
+      <div class="crumbs"><span class="muted">Studio</span><span class="sep">/</span><b id="crumb">Overview</b></div>
+      <form id="gsearchForm" class="search-wrap" role="search">
+        <i data-lucide="search"></i>
+        <input id="gsearch" type="search" placeholder="Cari game, user, media…" autocomplete="off" aria-label="Pencarian global">
+        <div id="gresults" class="results" hidden></div>
+      </form>
+      <span id="themePill" class="chip">Theme: dark</span>
+      <a class="btn btn-ghost btn-sm" href="../index.html" target="_blank" rel="noopener"><i data-lucide="external-link"></i><span class="hide-sm">Preview Website</span></a>
+      <div class="panel-wrap">
+        <button class="btn-icon" id="notifBtn" type="button" aria-label="Notifikasi"><i data-lucide="bell"></i><span class="count" id="notifCount"></span></button>
+        <div class="panel" id="notifPanel" hidden><div id="notifBody"></div></div>
+      </div>
+      <div class="panel-wrap">
+        <button class="avatar-btn" id="profileBtn" type="button" aria-label="Profil admin"><span class="avatar" id="meAvatar"></span></button>
+        <div class="panel profile" id="profilePanel" hidden>
+          <b id="pmName"></b><small class="muted" id="pmEmail"></small>
+          <span class="chip" id="pmRole"></span>
+          <button class="btn btn-ghost btn-block" id="logoutBtn" type="button"><i data-lucide="log-out"></i>Keluar</button>
+        </div>
+      </div>
+    </header>
+
+    <div id="demoBanner" class="demo-banner" role="status">
+      <i data-lucide="flask-conical"></i>
+      <span><b>MODE DEMO.</b> Data tersimpan di browser ini (localStorage) dan belum tersambung ke Firebase. Perubahan <b>tidak</b> dikirim ke server.</span>
+    </div>
+
+    <main id="view" class="view" tabindex="-1"></main>
+  </div>
+</div>
+
+<div id="modalRoot"></div>
+<div id="toasts" class="toasts" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/store.js"></script>
+<script type="module" src="js/fire.js"></script>
+<script src="js/app.js"></script>
+<script src="js/views.js"></script>
+</body>
+</html>

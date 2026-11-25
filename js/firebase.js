@@ -9,12 +9,12 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 const firebaseConfig = {
-  apiKey: 'YOUR_API_KEY',
-  authDomain: 'YOUR_PROJECT_ID.firebaseapp.com',
-  projectId: 'YOUR_PROJECT_ID',
-  storageBucket: 'YOUR_PROJECT_ID.appspot.com',
-  messagingSenderId: 'YOUR_SENDER_ID',
-  appId: 'YOUR_APP_ID',
+  apiKey: "AIzaSyAboK41iNCxvCyoUtHuc14p2Durx5X1i64",
+  authDomain: "heygammer-d8afd.firebaseapp.com",
+  projectId: "heygammer-d8afd",
+  storageBucket: "heygammer-d8afd.firebasestorage.app",
+  messagingSenderId: "428220685224",
+  appId: "1:428220685224:web:63c21598fdab913dfbdb9d",
 };
 
 const enabled = !String(firebaseConfig.apiKey).startsWith('YOUR_');

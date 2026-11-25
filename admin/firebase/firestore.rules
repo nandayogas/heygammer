@@ -1,0 +1,101 @@
+rules_version = '2';
+// HEYGAMMER — Firestore Security Rules (SATU file untuk seluruh project heygammer-d8afd).
+// Rules berlaku per project, jadi file ini menggantikan rules lama di README website.
+// Prinsip: default DENY. Role dibaca dari admins/{uid} di server, bukan dari frontend.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isStaff() {
+      return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+    function role() {
+      return get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role;
+    }
+    function canManage() {               // super_admin, admin, editor
+      return isStaff() && role() in ['super_admin', 'admin', 'editor'];
+    }
+    function canAdmin() {                // super_admin, admin
+      return isStaff() && role() in ['super_admin', 'admin'];
+    }
+    function isSuper() {
+      return isStaff() && role() == 'super_admin';
+    }
+
+    // Leaderboard publik (dari js/firebase.js website): baca publik, tulis skor dengan validasi.
+    // Skor masih bisa dipalsukan tanpa Auth. Tambahkan Anonymous Auth + App Check nanti.
+    match /scores/{id} {
+      allow read: if true;
+      allow create: if request.resource.data.score is int
+        && request.resource.data.score >= 0
+        && request.resource.data.score <= 100000
+        && request.resource.data.game is string
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 20;
+      allow update, delete: if false;
+    }
+
+    // Game: publik hanya melihat yang published. Draft hanya staff.
+    match /games/{gameId} {
+      allow read: if resource.data.status == 'published' || canManage();
+      allow create, update: if canManage()
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 80
+        && request.resource.data.status in ['draft', 'published'];
+      allow delete: if canAdmin();
+    }
+
+    match /categories/{id} {
+      allow read: if true;
+      allow write: if canManage();
+    }
+
+    // Website: draft hanya untuk staff; published boleh dibaca publik dan hanya admin yang publish.
+    match /website_settings/draft {
+      allow read, write: if canManage();
+    }
+    match /website_settings/published {
+      allow read: if true;
+      allow write: if canAdmin();
+    }
+
+    match /media/{id} {
+      allow read, write: if canManage();
+    }
+
+    // Profil: pemilik boleh baca dirinya; admin boleh kelola profil selain Super Admin.
+    // Role TIDAK disimpan di sini (ada di admins), jadi tidak bisa dinaikkan dari sini.
+    match /users/{uid} {
+      allow read: if request.auth.uid == uid || canAdmin();
+      allow create: if false;                        // akun dibuat lewat Authentication + Admin SDK
+      allow update: if (isSuper() || (canAdmin() && resource.data.get('role', 'player') != 'super_admin'))
+        && request.resource.data.keys().hasOnly(['id', 'name', 'email', 'status', 'createdAt', 'lastLogin', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    // Role resmi staf. Hanya Super Admin yang boleh menambah, mengubah, atau mencabut.
+    match /admins/{uid} {
+      allow read: if request.auth.uid == uid || isSuper() || canAdmin();
+      allow write: if isSuper();
+    }
+
+    match /analytics/{id} {
+      allow read: if canManage();
+      allow write: if false;                         // ditulis Cloud Function / Analytics
+    }
+
+    // Audit log: append-only.
+    match /activity_logs/{id} {
+      allow read: if canAdmin();
+      allow create: if canManage();
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
