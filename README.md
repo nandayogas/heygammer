@@ -97,7 +97,7 @@ service cloud.firestore {
 
 ## Fitur
 
-- Intro 3D sinematik (±7 detik) dengan tombol **SKIP INTRO**, tampil setiap halaman dibuka atau di-refresh. Intro motion design (canvas 2D + CSS, tanpa Three.js) ada di `js/intro.js` dan `css/intro.css`.
+- Intro 3D sinematik (±7 detik) dengan tombol **SKIP INTRO**, tampil setiap halaman dibuka atau di-refresh. Intro **3D Universe Cinematic** (Three.js: bintang, galaksi spiral, nebula, planet, black hole dengan lensing, logo 3D metalik, bloom) ada di `js/intro.js` dan `css/intro.css`. Kualitas otomatis turun di HP/Android; reduced motion dan WebGL gagal memakai logo statis.
 - **REPLAY INTRO** di menu Settings.
 - Hormat terhadap *reduced motion* dari sistem atau dari Settings.
 - Pencarian, filter (All, Popular, New, Top Rated), kategori, dan favorit tersimpan di `localStorage`.

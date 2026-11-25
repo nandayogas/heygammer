@@ -1,33 +1,16 @@
-/* css/intro.css — intro motion design (canvas di js/intro.js + animasi teks CSS) */
-#intro{overflow:hidden;background:#04020d}
-#intro.wipe{animation:inWipe .8s cubic-bezier(.7,0,.2,1) forwards}
-@keyframes inWipe{from{clip-path:circle(150% at 50% 50%)}to{clip-path:circle(0% at 50% 50%)}}
-.in-scan{position:absolute;inset:0;z-index:2;pointer-events:none;background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.65)),repeating-linear-gradient(0deg,rgba(255,255,255,.04) 0 1px,transparent 1px 3px);animation:inFlick .15s steps(2) infinite}
-@keyframes inFlick{50%{opacity:.82}}
-.in-stage{position:absolute;left:0;right:0;top:42%;transform:translateY(-50%);z-index:3;display:flex;flex-direction:column;align-items:center;gap:clamp(10px,2.4vw,22px);pointer-events:none}
-.in-title{display:flex;perspective:700px;font:900 italic clamp(40px,11vw,128px)/1 'Arial Black','Segoe UI',system-ui,sans-serif;letter-spacing:.04em;color:#fff}
-.in-title span{display:inline-block;opacity:0}
-.in-title span.g{background:linear-gradient(180deg,#67e8f9,#a855f7 60%,#ec4899);-webkit-background-clip:text;background-clip:text;color:transparent}
-.go .in-title{filter:drop-shadow(0 0 18px rgba(168,85,247,.75))}
-.go .in-title span{animation:inL .75s cubic-bezier(.2,1.4,.3,1) forwards;animation-delay:calc(var(--i)*.07s)}
-@keyframes inL{0%{opacity:0;transform:translateY(-90px) scale(3) rotateX(70deg);filter:blur(18px)}55%{opacity:1;filter:blur(0)}100%{opacity:1;transform:none;filter:none}}
-.glitch .in-title{animation:inGl .6s steps(1) 1}
-@keyframes inGl{0%{filter:drop-shadow(7px 0 #0ff) drop-shadow(-7px 0 #f0f);transform:translateX(5px) skewX(-8deg)}20%{filter:drop-shadow(-6px 0 #0ff) drop-shadow(6px 0 #f0f);transform:translateX(-6px) skewX(6deg)}40%{filter:drop-shadow(4px 2px #0ff) drop-shadow(-4px -2px #f0f);transform:translateX(3px)}60%{filter:drop-shadow(-3px 0 #0ff) drop-shadow(3px 0 #f0f);transform:translateX(-2px) skewX(-3deg)}80%{filter:drop-shadow(2px 0 #0ff) drop-shadow(-2px 0 #f0f);transform:none}100%{filter:drop-shadow(0 0 18px rgba(168,85,247,.75));transform:none}}
-.in-tag{display:flex;flex-wrap:wrap;justify-content:center;gap:.3em 1.1em;font:900 clamp(13px,2.6vw,24px)/1 'Segoe UI',system-ui,sans-serif;letter-spacing:.35em}
-.in-tag span{opacity:0}
-.in-tag span:nth-child(1){color:#67e8f9;text-shadow:0 0 14px #22d3ee}
-.in-tag span:nth-child(2){color:#fde047;text-shadow:0 0 14px #f59e0b}
-.in-tag span:nth-child(3){color:#f472b6;text-shadow:0 0 14px #ec4899}
-.tag .in-tag span{animation:inT .45s cubic-bezier(.2,1.6,.4,1) forwards}
-.tag .in-tag span:nth-child(2){animation-delay:.45s}.tag .in-tag span:nth-child(3){animation-delay:.9s}
-@keyframes inT{0%{opacity:0;transform:scale(2.8);filter:blur(8px)}100%{opacity:1;transform:none;filter:none}}
-.in-load{position:absolute;left:50%;bottom:11%;width:min(70vw,420px);transform:translateX(-50%);z-index:3;text-align:center;opacity:0;transition:opacity .3s}
-.load .in-load{opacity:1}
-.in-track{height:6px;border-radius:6px;background:rgba(255,255,255,.12);overflow:hidden}
-#inBar{display:block;height:100%;width:0;background:linear-gradient(90deg,#22d3ee,#a855f7,#ec4899);box-shadow:0 0 12px #a855f7}
-.in-load b{display:block;margin-top:9px;font:700 11px 'Segoe UI',system-ui,sans-serif;letter-spacing:.3em;color:#a5b4fc}
+/* css/intro.css — overlay intro 3D (scene WebGL ada di js/intro.js) */
+#intro{overflow:hidden;background:#02010a}
+#intro.wipe{animation:inWipe .9s ease-in forwards}
+@keyframes inWipe{to{opacity:0;transform:scale(1.12);filter:blur(5px)}}
+#introCanvas{touch-action:none}
+.in-bar{position:absolute;left:0;right:0;height:8vh;background:#000;z-index:2;pointer-events:none}
+.in-bar.t{top:0}.in-bar.b{bottom:0}
+.in-cap{position:absolute;left:0;right:0;bottom:15%;z-index:3;text-align:center;pointer-events:none;padding:0 16px;color:#e0e7ff;font:700 clamp(12px,2.4vw,22px)/1.2 'Segoe UI',system-ui,sans-serif;letter-spacing:.4em;text-shadow:0 0 14px #6366f1;opacity:0}
+.in-cap.on{animation:inCap 1.6s ease both}
+.in-cap.ld{opacity:1;animation:inPulse 1s ease-in-out infinite alternate}
+@keyframes inCap{0%{opacity:0;letter-spacing:.7em;filter:blur(6px)}25%,75%{opacity:1;letter-spacing:.42em;filter:none}100%{opacity:0;letter-spacing:.38em}}
+@keyframes inPulse{from{opacity:.35}to{opacity:1}}
+/* cadangan bila WebGL gagal / reduced motion */
+.in-fb{position:absolute;inset:0;z-index:2;display:none;align-items:center;justify-content:center;font:900 italic clamp(36px,10vw,110px)/1 'Arial Black','Segoe UI',sans-serif;color:#fff;text-shadow:0 0 30px #a855f7,0 0 60px #6366f1;background:radial-gradient(circle at 50% 40%,#1a0b3d,#02010a 70%)}
+#intro.fb .in-fb{display:flex}
 #skipIntro{z-index:4}
-.shake>canvas,.shake .in-stage{animation:inShake .3s linear 1}
-@keyframes inShake{0%,100%{translate:0 0}20%{translate:-7px 3px}40%{translate:6px -4px}60%{translate:-4px -3px}80%{translate:3px 4px}}
-/* reduced motion: tampil statis sebentar */
-.static .in-title span,.static .in-tag span{opacity:1!important;transform:none!important;filter:none!important}
