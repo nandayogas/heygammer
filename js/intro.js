@@ -7,7 +7,14 @@ import { logoTexture } from './three-scene.js';
 
 const FONT_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/fonts/helvetiker_bold.typeface.json';
 const DUR = 7.6, TP = 5.4; // durasi total, durasi kamera menyusuri jalur
-const CAPS = [[.9, 2.6, 'ENTER THE UNIVERSE'], [2.9, 4.4, 'WHERE GAMES ARE BORN'], [6.0, 7.6, 'PLAY · EXPLORE · DOMINATE']];
+const CAPS = [[.6, 2.1, 'PLAYER 1 READY'], [2.4, 3.7, 'LEVEL 01 · THE UNIVERSE'], [3.9, 5.2, 'FIND THE LEGEND'], [5.9, 7.6, 'PRESS START<small>PLAY · EXPLORE · DOMINATE</small>', 1]];
+const ICONS = ['🎮', '🕹️', '👾', '🪙', '🏆', '⚔️', '🎲', '👻', '🏎️', '🚀', '⚽', '🧟'];
+function emojiTex(e) {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d'); g.font = '96px "Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji",sans-serif';
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(e, 64, 72);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
 const V3 = (...a) => new THREE.Vector3(...a);
 const LOGO = V3(0, 12, -2010), PLANET = V3(-300, -110, -2300), BH = V3(380, 90, -1150), LIGHT = V3(1, .35, .5).normalize();
 const CAM = new THREE.CatmullRomCurve3([V3(0, 0, 300), V3(0, 8, 60), V3(-10, 22, -380), V3(18, 14, -850), V3(-10, -4, -1250), V3(150, 6, -1600), V3(55, 12, -1790), V3(0, 12, -1900)], false, 'centripetal');
@@ -138,11 +145,17 @@ col*=mix(1.,smoothstep(.95,.25,length(dir*vec2(uA*.8,1.))),uVig);gl_FragColor=ve
 export function runIntro(canvas, onDone) {
   const root = canvas.parentElement, cap = root.querySelector('#inCap');
   root.classList.remove('wipe', 'fb'); cap.className = 'in-cap'; cap.textContent = '';
+  root.style.transition = 'none'; root.style.opacity = ''; root.style.transform = ''; // fade-out diatur lewat JS
+  const hud = { score: root.querySelector('#inScore'), lv: root.querySelector('#inLv'), prog: root.querySelector('#inProg') };
+  const calm = document.body.classList.contains('reduce'); // mode "kurangi animasi": tetap main, tanpa guncangan/kilatan/FOV kick
   let stopped = false, raf = 0, timer = 0, cleanup = () => {};
-  const stop = () => { stopped = true; cancelAnimationFrame(raf); clearTimeout(timer); cleanup(); };
-  const fallback = () => { cap.className = 'in-cap'; cap.textContent = ''; root.classList.add('fb'); timer = setTimeout(onDone, 1600); };
-  if (document.body.classList.contains('reduce')) { fallback(); return stop; }
-  start().catch(e => { console.warn('Intro 3D gagal, memakai logo statis.', e); if (!stopped) { cleanup(); fallback(); } });
+  const stop = () => { stopped = true; cancelAnimationFrame(raf); clearTimeout(timer); cleanup(); root.style.transition = ''; };
+  const fallback = err => {
+    cap.className = 'in-cap'; cap.textContent = ''; root.classList.add('fb');
+    const eb = root.querySelector('#inErr'); if (eb) eb.textContent = err ? '3D gagal: ' + (err.message || err) : '';
+    timer = setTimeout(onDone, err ? 3500 : 1800);
+  };
+  start().catch(e => { console.warn('Intro 3D gagal, memakai logo statis.', e); if (!stopped) { cleanup(); fallback(e); } });
   return stop;
 
   async function start() {
@@ -152,7 +165,7 @@ export function runIntro(canvas, onDone) {
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
     renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1;
     const imp = p => import('three/addons/' + p).catch(() => null);
-    const [EC, RP, BP, SP, OP, RE, FL, TG] = await Promise.all(['postprocessing/EffectComposer.js', 'postprocessing/RenderPass.js', 'postprocessing/UnrealBloomPass.js', 'postprocessing/ShaderPass.js', 'postprocessing/OutputPass.js', 'environments/RoomEnvironment.js', 'loaders/FontLoader.js', 'geometries/TextGeometry.js'].map(imp));
+    const [EC, RP, BP, SP, OP, RE, FL, TG, RB] = await Promise.all(['postprocessing/EffectComposer.js', 'postprocessing/RenderPass.js', 'postprocessing/UnrealBloomPass.js', 'postprocessing/ShaderPass.js', 'postprocessing/OutputPass.js', 'environments/RoomEnvironment.js', 'loaders/FontLoader.js', 'geometries/TextGeometry.js', 'geometries/RoundedBoxGeometry.js'].map(imp));
     let font = null;
     if (FL && TG) {
       try {
@@ -216,7 +229,7 @@ export function runIntro(canvas, onDone) {
     const logoG = new THREE.Group(); anchor.add(logoG);
     let logoW = 66;
     if (font) {
-      const geo = new TG.TextGeometry('HEYGAMMER', { font, size: 10, depth: 3.4, curveSegments: 6, bevelEnabled: true, bevelThickness: .35, bevelSize: .28, bevelSegments: 3 });
+      const geo = new TG.TextGeometry('HEYGAMMER', { font, size: 10, height: 3.4, depth: 3.4, curveSegments: 6, bevelEnabled: true, bevelThickness: .35, bevelSize: .28, bevelSegments: 3 });
       geo.center(); geo.computeBoundingBox(); logoW = geo.boundingBox.max.x - geo.boundingBox.min.x;
       logoG.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xd6c7ff, metalness: 1, roughness: .18, envMapIntensity: 1.6, emissive: 0x3b1d8f, emissiveIntensity: .5 })));
       const halo = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x7c3aed, side: THREE.BackSide, transparent: true, opacity: .55, blending: ADD, depthWrite: false })); halo.scale.setScalar(1.035); logoG.add(halo);
@@ -230,6 +243,31 @@ export function runIntro(canvas, onDone) {
     anchor.add(lc, lm, ls);
     const wave = new THREE.Mesh(new THREE.RingGeometry(.9, 1, 64), new THREE.MeshBasicMaterial({ color: 0x67e8f9, transparent: true, opacity: 0, blending: ADD, depthWrite: false, side: THREE.DoubleSide }));
     anchor.add(wave);
+
+    // props & ikon game (sprite emoji) + controller 3D prosedural
+    const ICON_TEX = ICONS.map(e => { const t = emojiTex(e); tex.push(t); return t; });
+    const spr = (map, color, blend) => new THREE.Sprite(new THREE.SpriteMaterial({ map, color, transparent: true, depthWrite: false, opacity: 0, blending: blend || THREE.NormalBlending }));
+    const GLOW = [0x22d3ee, 0xec4899, 0xfde047, 0x8b5cf6], pt = new THREE.Vector3();
+    const props = Array.from({ length: q ? 36 : 22 }, (_, i) => {
+      CAM.getPoint(rnd(.04, .9), pt);
+      const a = rnd(0, 6.283), r = rnd(28, 95), s = spr(ICON_TEX[i % ICONS.length], 0xffffff), gl = spr(gt, GLOW[i % 4], ADD);
+      s.position.set(pt.x + Math.cos(a) * r, pt.y + Math.sin(a) * r * .7, pt.z + rnd(-40, 40));
+      scene.add(gl, s); return { s, gl, base: s.position.clone(), sc: rnd(14, 30), ph: rnd(0, 6.283), spin: rnd(.6, 1.6) };
+    });
+    const orb = Array.from({ length: 10 }, (_, i) => { const s = spr(ICON_TEX[i % ICONS.length], 0xffffff); anchor.add(s); return s; });
+    const pad = new THREE.Group(), padBtn = [];
+    const dark = new THREE.MeshStandardMaterial({ color: 0x1f1b3a, metalness: .6, roughness: .3, envMapIntensity: 1.2 });
+    const black = new THREE.MeshStandardMaterial({ color: 0x0b0b16, roughness: .5, metalness: .4 });
+    const put = (geo, mat, x, y, z, rx = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, 0, rz); pad.add(m); };
+    put(RB ? new RB.RoundedBoxGeometry(34, 15, 6, 4, 3) : new THREE.BoxGeometry(34, 15, 6), dark, 0, 0, 0);
+    put(new THREE.CapsuleGeometry(5, 12, 4, 12), dark, -15, -7, 0, 0, .35); put(new THREE.CapsuleGeometry(5, 12, 4, 12), dark, 15, -7, 0, 0, -.35);
+    put(new THREE.BoxGeometry(7, 2.2, 1.4), black, -10, 2, 3.4); put(new THREE.BoxGeometry(2.2, 7, 1.4), black, -10, 2, 3.4);
+    put(new THREE.CylinderGeometry(2.6, 2.6, 1.6, 20), black, -5, -3.5, 3.4, Math.PI / 2); put(new THREE.CylinderGeometry(2.6, 2.6, 1.6, 20), black, 6, -3.5, 3.4, Math.PI / 2);
+    [[0x22d3ee, 11, 5], [0xec4899, 15, 2], [0xfde047, 11, -1], [0x4ade80, 7, 2]].forEach(([c, x, y]) => {
+      const m = new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: .8, roughness: .3 }); padBtn.push(m);
+      put(new THREE.CylinderGeometry(1.7, 1.7, 1.4, 16), m, x, y, 3.4, Math.PI / 2);
+    });
+    pad.position.y = -21; logoG.add(pad);
 
     // post-processing: bloom → lensing/CA/vignette → tone mapping
     let composer = null, bloom = null, lens = null;
@@ -273,13 +311,13 @@ export function runIntro(canvas, onDone) {
     cap.className = 'in-cap'; cap.textContent = '';
 
     const P = new THREE.Vector3(), Q = new THREE.Vector3(), tmp = new THREE.Vector3(), fwd = new THREE.Vector3();
-    let t0 = 0, last = 0, ema = .016, capI = -1, tuned = 0, wiped = false;
+    let t0 = 0, last = 0, ema = .016, capI = -1, tuned = 0, lastSc = -1;
     const frame = now => {
       if (stopped) return;
       try {
         if (!t0) { t0 = now; last = now; }
         const t = (now - t0) / 1000, dt = clamp((now - last) / 1000, 0, .05); last = now; ema = ema * .9 + dt * .1;
-        const x = clamp(t / TP), u = smooth(x), sp = 4 * x * (1 - x), dv = smooth((t - 5.6) / 2);
+        const x = clamp(t / TP), u = smooth(x), sp = calm ? 0 : 4 * x * (1 - x), dv = smooth((t - 5.6) / 2);
         CAM.getPoint(u, P); LOOK.getPoint(u, Q);
         px += (tx - px) * .05; py += (ty - py) * .05;
         camera.position.set(P.x + px * 7 + rnd(-1, 1) * sp * .2, P.y - py * 4 + rnd(-1, 1) * sp * .2 + dv * 14, P.z + dv * 120);
@@ -310,17 +348,46 @@ export function runIntro(canvas, onDone) {
           const wp = clamp((t - 4.8) / 1.2); wave.scale.setScalar(8 + 260 * smooth(wp)); wave.material.opacity = .9 * (1 - wp) * (wp > 0 ? 1 : 0);
         }
 
+        // props gaming melayang di sepanjang jalur
+        const pf = smooth((t - .4) / .6);
+        for (const p of props) {
+          const d = p.s.position.distanceTo(camera.position), o = smooth((d - 25) / 50) * (1 - smooth((d - 650) / 350)) * pf;
+          p.s.position.y = p.base.y + Math.sin(t * 1.5 + p.ph) * 3; p.gl.position.copy(p.s.position);
+          const k = p.sc * (1 + .08 * Math.sin(t * 3 + p.ph));
+          p.s.scale.set(k, k, 1); p.gl.scale.set(k * 2.4, k * 2.4, 1);
+          p.s.material.rotation = Math.sin(t * p.spin + p.ph) * .5; p.s.material.opacity = o; p.gl.material.opacity = .5 * o;
+        }
+        // ikon game mengorbit logo + controller 3D berdenyut
+        if (lr > 0) {
+          const fit = logoG.userData.fit, R = fit * logoW * .56 + 12, sz = clamp(fit * 7, 8, 22);
+          orb.forEach((s, i) => {
+            const a = i / orb.length * 6.283 + t * .7, e = outBack((lr - .5 - i * .07) / .6);
+            s.position.set(Math.cos(a) * R, Math.sin(a) * R * .3 + 2, Math.sin(a) * R * .55);
+            s.scale.setScalar(Math.max(.001, sz * e)); s.material.opacity = clamp(e);
+          });
+          pad.rotation.set(Math.sin(t * 1.1) * .25 + .15, Math.sin(t * .8) * .5, Math.sin(t * .9) * .08);
+          pad.position.y = -21 + Math.sin(t * 2) * 1.2;
+          padBtn.forEach((m, i) => { m.emissiveIntensity = .6 + .5 * Math.sin(t * 5 + i * 1.6); });
+        }
+        // HUD arcade: skor, level, progress
+        const scr = Math.floor(smooth(t / 6.4) * 9999) * 10;
+        if (scr !== lastSc) { lastSc = scr; hud.score.textContent = String(scr).padStart(6, '0'); }
+        const lv = t < 2.4 ? 'LV 01' : t < 3.9 ? 'LV 02' : t < 5.2 ? 'LV 03' : 'LV MAX';
+        if (lv !== hud.lv.textContent) hud.lv.textContent = lv;
+        hud.prog.style.width = clamp(t / (DUR - .9)) * 100 + '%';
+
         // lensing black hole: kuat saat dekat dan berada di depan kamera
         tmp.copy(BH).project(camera); fwd.copy(BH).sub(camera.position);
         const front = fwd.dot(camera.getWorldDirection(P)) > 0;
         lensU.uC.value.set(tmp.x * .5 + .5, tmp.y * .5 + .5);
         lensU.uS.value = front ? .13 * clamp(1 - fwd.length() / 1100) : 0;
-        lensU.uCA.value = .012 + .05 * sp;
-        if (bloom) bloom.strength = (q ? .85 : .7) + 1.3 * Math.exp(-Math.max(0, t - 4.8) * 3.5) * (t > 4.8 ? 1 : 0);
+        lensU.uCA.value = calm ? .004 : .012 + .05 * sp;
+        if (bloom) bloom.strength = (q ? .85 : .7) + (calm ? .3 : 1.3) * Math.exp(-Math.max(0, t - 4.8) * 3.5) * (t > 4.8 ? 1 : 0);
 
         const c = CAPS.findIndex(([a, b]) => t >= a && t < b);
-        if (c !== capI) { capI = c; cap.classList.remove('on'); if (c >= 0) { cap.textContent = CAPS[c][2]; void cap.offsetWidth; cap.classList.add('on'); } }
-        if (!wiped && t >= DUR - .9) { wiped = true; root.classList.add('wipe'); }
+        if (c !== capI) { capI = c; cap.classList.remove('on', 'hold'); if (c >= 0) { cap.innerHTML = CAPS[c][2]; void cap.offsetWidth; cap.classList.add(CAPS[c][3] ? 'hold' : 'on'); } }
+        const f = clamp((t - (DUR - .9)) / .9); // fade-out + zoom ke homepage (lewat JS agar tetap jalan di mode reduce)
+        if (f > 0) { root.style.opacity = 1 - f * f; root.style.transform = `scale(${1 + .12 * f})`; }
 
         // adaptif: kalau FPS rendah turunkan resolusi, lalu matikan bloom
         if (t > .8 && tuned === 0 && ema > .026) { tuned = 1; pr = Math.max(.6, pr * .7); resize(); }

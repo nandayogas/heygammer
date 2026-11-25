@@ -1,16 +1,32 @@
 /* css/intro.css — overlay intro 3D (scene WebGL ada di js/intro.js) */
 #intro{overflow:hidden;background:#02010a}
-#intro.wipe{animation:inWipe .9s ease-in forwards}
-@keyframes inWipe{to{opacity:0;transform:scale(1.12);filter:blur(5px)}}
 #introCanvas{touch-action:none}
 .in-bar{position:absolute;left:0;right:0;height:8vh;background:#000;z-index:2;pointer-events:none}
 .in-bar.t{top:0}.in-bar.b{bottom:0}
-.in-cap{position:absolute;left:0;right:0;bottom:15%;z-index:3;text-align:center;pointer-events:none;padding:0 16px;color:#e0e7ff;font:700 clamp(12px,2.4vw,22px)/1.2 'Segoe UI',system-ui,sans-serif;letter-spacing:.4em;text-shadow:0 0 14px #6366f1;opacity:0}
+.in-cap{position:absolute;left:0;right:0;bottom:18%;z-index:3;text-align:center;pointer-events:none;padding:0 16px;color:#e0e7ff;font:700 clamp(13px,2.8vw,22px)/1.2 'Courier New',monospace;letter-spacing:.4em;text-shadow:0 0 14px #6366f1;opacity:0}
+.in-cap small{display:block;margin-top:.7em;font-size:.55em;letter-spacing:.3em;color:#67e8f9;text-shadow:0 0 10px #22d3ee}
 .in-cap.on{animation:inCap 1.6s ease both}
+.in-cap.hold{animation:inCapIn .5s ease both,inBlink .9s steps(1) .5s infinite}
 .in-cap.ld{opacity:1;animation:inPulse 1s ease-in-out infinite alternate}
 @keyframes inCap{0%{opacity:0;letter-spacing:.7em;filter:blur(6px)}25%,75%{opacity:1;letter-spacing:.42em;filter:none}100%{opacity:0;letter-spacing:.38em}}
+@keyframes inCapIn{from{opacity:0;letter-spacing:.7em}to{opacity:1;letter-spacing:.42em}}
+@keyframes inBlink{0%,60%{opacity:1}61%,100%{opacity:.15}}
 @keyframes inPulse{from{opacity:.35}to{opacity:1}}
-/* cadangan bila WebGL gagal / reduced motion */
-.in-fb{position:absolute;inset:0;z-index:2;display:none;align-items:center;justify-content:center;font:900 italic clamp(36px,10vw,110px)/1 'Arial Black','Segoe UI',sans-serif;color:#fff;text-shadow:0 0 30px #a855f7,0 0 60px #6366f1;background:radial-gradient(circle at 50% 40%,#1a0b3d,#02010a 70%)}
+.reduce #intro .in-cap.on,.reduce #intro .in-cap.hold{opacity:1}
+/* HUD arcade */
+.in-hud{position:absolute;z-index:3;top:calc(8vh + 10px);font:700 clamp(10px,2.6vw,14px)/1.4 'Courier New',monospace;letter-spacing:.14em;color:#fde68a;text-shadow:0 0 8px #f59e0b;pointer-events:none}
+.in-hud span{display:block;color:#67e8f9;text-shadow:0 0 8px #22d3ee}
+.in-hud i{font-style:normal;color:#f43f5e;text-shadow:0 0 8px #f43f5e}
+.in-hud.tl{left:14px}.in-hud.tr{right:14px;text-align:right}
+.in-hud.bl{left:14px;top:auto;bottom:calc(8vh + 32px)}
+.in-prog{position:absolute;left:50%;bottom:calc(8vh + 14px);width:min(70vw,360px);height:10px;transform:translateX(-50%);z-index:3;border:1px solid #67e8f9;padding:1px;box-shadow:0 0 10px #22d3ee;pointer-events:none}
+.in-prog i{display:block;height:100%;width:0;background:repeating-linear-gradient(90deg,#22d3ee 0 6px,transparent 6px 8px)}
+/* cadangan bila WebGL gagal */
+.in-fb{position:absolute;inset:0;z-index:2;display:none;flex-direction:column;gap:14px;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#1a0b3d,#02010a 70%)}
 #intro.fb .in-fb{display:flex}
+.in-fb b{font:900 italic clamp(36px,10vw,110px)/1 'Arial Black','Segoe UI',sans-serif;color:#fff;text-shadow:0 0 30px #a855f7,0 0 60px #6366f1}
+.in-fb span{font-size:clamp(24px,7vw,44px);letter-spacing:.2em;animation:inBob 1.2s ease-in-out infinite alternate}
+@keyframes inBob{to{transform:translateY(-10px)}}
+.in-fb em{font:700 14px 'Courier New',monospace;letter-spacing:.4em;color:#fde68a;animation:inBlink .9s steps(1) infinite}
+.in-fb small{max-width:80vw;text-align:center;word-break:break-word;font:11px 'Courier New',monospace;color:#f87171}
 #skipIntro{z-index:4}
