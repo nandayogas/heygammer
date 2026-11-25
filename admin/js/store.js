@@ -285,6 +285,27 @@
     return { result: clone(rec), writes };
   });
 
+  // ---- File game (satu dokumen per file di games/{id}/files)
+  const fileId = (p) => 'f_' + encodeURIComponent(p);
+  HG.saveGameFiles = async (gameId, files) => {
+    if (FIRE) {
+      const sub = 'games/' + gameId + '/files';
+      const old = await settle(window.HGFire.readColl(sub), []);
+      for (const o of old) await window.HGFire.delDoc(sub, o.id);
+      for (const f of files) await window.HGFire.setDoc(sub, fileId(f.path), clone(f));
+      return true;
+    }
+    return txn(() => {
+      state.gameFiles = state.gameFiles || {};
+      if (files.length) state.gameFiles[gameId] = clone(files); else delete state.gameFiles[gameId];
+      return { result: true, writes: [] };
+    });
+  };
+  HG.getGameFiles = async (gameId) => {
+    if (FIRE) return settle(window.HGFire.readColl('games/' + gameId + '/files'), []);
+    return clone((state.gameFiles && state.gameFiles[gameId]) || []);
+  };
+
   HG.remove = (coll, id) => txn(() => {
     state[coll] = state[coll].filter((x) => x.id !== id);
     return { result: true, writes: [{ coll, id, data: null }] };

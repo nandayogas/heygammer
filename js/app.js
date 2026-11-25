@@ -3,6 +3,7 @@
 // leaderboard (online/lokal), modal permainan, settings, dan kontrol intro.
 import { runGame } from './games.js';
 import { backend } from './firebase.js';
+import { loadRemoteGames } from './remote.js';
 import { startHero } from './three-scene.js';
 import { runIntro } from './intro.js';
 import { GAMES, CATS } from './data/catalog.js';
@@ -88,7 +89,7 @@ function renderCats() {
 function gameCard(g) {
   const fav = favs.includes(g.id);
   return `<article class="gcard glass">
-    <span class="thumb th" style="background:${g.bg}">${thumb(g)}</span>
+    <span class="thumb th" style="background:${g.bg}">${g.thumbnail ? `<img class="thumb-img" src="${esc(g.thumbnail)}" alt="" loading="lazy">` : thumb(g)}</span>
     ${g.isNew ? '<i class="tag">NEW</i>' : ''}
     <button class="fav ${fav ? 'on' : ''}" data-fav="${g.id}" aria-label="Favorit">${fav ? '♥' : '♡'}</button>
     <h3>${esc(g.name)}</h3>
@@ -372,5 +373,13 @@ tickCountdown();
 setInterval(tickCountdown, 1000);
 restartHeroTimer();
 startHero($('#hero3d'));
+
+// Game dari Firestore (dikelola admin studio). Jika gagal, katalog statis tetap tampil.
+loadRemoteGames().then(({ games, cats }) => {
+  if (!games.length) return;
+  GAMES.push(...games);
+  cats.forEach(c => { if (!CATS.some(([n]) => n === c)) CATS.push([c, '🎮']); });
+  renderCats(); renderGames(); renderRecent(); renderDaily();
+});
 
 playIntro(); // intro diputar setiap halaman dibuka / di-refresh

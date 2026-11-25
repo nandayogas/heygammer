@@ -18,7 +18,7 @@ const firebaseConfig = {
 };
 
 const enabled = !String(firebaseConfig.apiKey).startsWith('YOUR_');
-const db = enabled ? getFirestore(initializeApp(firebaseConfig)) : null;
+export const db = enabled ? getFirestore(initializeApp(firebaseConfig)) : null;
 
 export const backend = {
   enabled,

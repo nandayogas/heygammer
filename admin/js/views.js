@@ -251,7 +251,10 @@
   async function saveGameData(data, existingId, extra = {}) {
     if (!data.title) throw new Error('Judul wajib diisi.');
     if (!urlOk(data.gameUrl) || !urlOk(data.thumbnail)) throw new Error('URL tidak valid. Gunakan https://, path relatif, atau kosongkan.');
-    if (data.status === 'published' && !data.gameUrl) throw new Error('Publish butuh Game URL. Isi dulu, atau simpan sebagai draft.');
+    if (data.status === 'published' && !data.gameUrl && !extra.entry) {
+      const cur = existingId ? (await HG.list('games')).find((x) => x.id === existingId) : null;
+      if (!cur || !cur.entry) throw new Error('Publish butuh Game URL atau file game. Isi dulu, atau simpan sebagai draft.');
+    }
     const rec = await HG.save('games', { ...(existingId ? { id: existingId } : {}), ...data, ...extra });
     HG.log(existingId ? 'Update game' : 'Tambah game', rec.title);
     return rec;
@@ -345,8 +348,8 @@
         if (act === 'toggle') {
           if (g.status === 'published') {
             await run(b, async () => { await HG.save('games', { id, status: 'draft' }); HG.log('Batalkan publikasi', g.title); toast('Game dikembalikan ke draft.'); return true; });
-          } else if (!g.gameUrl) {
-            toast('Isi Game URL dulu sebelum publish.', 'error');
+          } else if (!g.gameUrl && !g.entry) {
+            toast('Isi Game URL atau upload file game dulu sebelum publish.', 'error');
             return openForm(g);
           } else {
             await run(b, async () => { await HG.save('games', { id, status: 'published' }); HG.log('Publish game', g.title); toast('Game dipublish.'); return true; });
@@ -356,7 +359,7 @@
         if (act === 'del') {
           const ok = await confirmBox(`Hapus "${g.title}" secara permanen? Tindakan ini tidak bisa dibatalkan.`, { title: 'Hapus game', okText: 'Hapus' });
           if (!ok) return;
-          await run(b, async () => { await HG.remove('games', id); HG.log('Hapus game', g.title); toast('Game dihapus.'); return true; });
+          await run(b, async () => { await HG.saveGameFiles(id, []); await HG.remove('games', id); HG.log('Hapus game', g.title); toast('Game dihapus.'); return true; });
           refresh();
         }
       };
@@ -364,142 +367,245 @@
   };
 
   // ================= UPLOADER =================
+  // ---- Helper file game (dipakai uploader dan dapat diuji terpisah)
+  // INLINE-BEGIN
   const BAD_EXT = /\.(php|asp|aspx|jsp|cgi|exe|dll|so|sh|bat|cmd|ps1|jar|py|rb|pl|phtml|htaccess)$/i;
-  const OK_EXT = /\.(html?|js|mjs|css|json|png|jpe?g|gif|webp|svg|ico|mp3|ogg|wav|m4a|woff2?|ttf|otf|txt|mp4|webm)$/i;
-  const MAX_ZIP = 50 * 1024 * 1024, MAX_FILES = 500, MAX_UNPACK = 200 * 1024 * 1024;
-  const MIME = { html: 'text/html', htm: 'text/html', js: 'text/javascript', mjs: 'text/javascript', css: 'text/css', json: 'application/json', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml', ico: 'image/x-icon', mp3: 'audio/mpeg', ogg: 'audio/ogg', wav: 'audio/wav', m4a: 'audio/mp4', woff: 'font/woff', woff2: 'font/woff2', ttf: 'font/ttf', otf: 'font/otf', txt: 'text/plain', mp4: 'video/mp4', webm: 'video/webm' };
+  const TEXT_EXT = /\.(html?|css|m?js|json|txt|svg|md)$/i;
+  const ALLOW = /\.(html?|css|m?js|json|txt|svg|png|jpe?g|gif|webp|ico|mp3|ogg|wav|m4a|woff2?|ttf|otf|mp4|webm)$/i;
+  const MIME = { html: 'text/html', htm: 'text/html', js: 'text/javascript', mjs: 'text/javascript', css: 'text/css', json: 'application/json', txt: 'text/plain', md: 'text/markdown', svg: 'image/svg+xml', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', ico: 'image/x-icon', mp3: 'audio/mpeg', ogg: 'audio/ogg', wav: 'audio/wav', m4a: 'audio/mp4', woff: 'font/woff', woff2: 'font/woff2', ttf: 'font/ttf', otf: 'font/otf', mp4: 'video/mp4', webm: 'video/webm' };
+  const MAX_ZIP = 50 * 1024 * 1024, MAX_FILE = 900 * 1024, MAX_TOTAL = 20 * 1024 * 1024, MAX_FILES = 500;
   const norm = (p) => { const out = []; for (const s of p.split('/')) { if (!s || s === '.') continue; if (s === '..') out.pop(); else out.push(s); } return out.join('/'); };
-
-  // Validasi di sisi klien (UX). Ekstraksi AMAN di server tetap wajib dilakukan Cloud Function.
-  async function validateZip(file) {
-    const errors = [], warnings = [];
-    if (!/\.zip$/i.test(file.name)) errors.push('File harus berekstensi .zip.');
-    if (file.size > MAX_ZIP) errors.push(`Ukuran ZIP melebihi 50 MB (${(file.size / 1048576).toFixed(1)} MB).`);
-    if (file.size === 0) errors.push('File kosong.');
-    if (errors.length) return { errors, warnings };
-    const magic = new Uint8Array(await file.slice(0, 4).arrayBuffer());
-    if (!(magic[0] === 0x50 && magic[1] === 0x4b)) return { errors: ['Isi file bukan arsip ZIP yang valid.'], warnings };
-    if (!window.JSZip) return { errors: ['Library JSZip gagal dimuat. Periksa koneksi internet.'], warnings };
-    let zip;
-    try { zip = await JSZip.loadAsync(file); }
-    catch (e) { return { errors: ['ZIP rusak atau tidak bisa dibaca.'], warnings }; }
-    const entries = [];
-    let total = 0;
-    for (const [name, z] of Object.entries(zip.files)) {
-      if (z.dir) continue;
-      if (name.includes('\\') || name.startsWith('/') || /^[a-z]:/i.test(name) || name.split('/').includes('..')) { errors.push('Path berbahaya di dalam ZIP: ' + name); continue; }
-      if (BAD_EXT.test(name)) { errors.push('Tipe file dilarang: ' + name); continue; }
-      if (!OK_EXT.test(name)) { errors.push('Tipe file tidak diizinkan: ' + name); continue; }
-      const size = (z._data && z._data.uncompressedSize) || 0;
-      total += size;
-      entries.push({ name, size });
-    }
-    if (entries.length > MAX_FILES) errors.push(`Jumlah file melebihi ${MAX_FILES}.`);
-    if (total > MAX_UNPACK) errors.push('Ukuran hasil ekstraksi melebihi 200 MB (kemungkinan zip bomb).');
-    if (!total) warnings.push('Ukuran hasil ekstraksi tidak bisa dihitung di browser; batas akan diperiksa saat ekstraksi di server.');
-    const idx = entries.map((e) => e.name).filter((n) => /(^|\/)index\.html?$/i.test(n)).sort((a, b) => a.split('/').length - b.split('/').length)[0];
-    if (!idx) errors.push('index.html tidak ditemukan. Pastikan ada di root ZIP atau satu folder di dalamnya.');
-    else if (idx.split('/').length > 2) warnings.push('index.html berada lebih dari satu folder dari root.');
-    return { errors, warnings, entries, zip, indexPath: idx, total, count: entries.length };
+  const mimeOf = (p) => MIME[(p.split('.').pop() || '').toLowerCase()] || 'application/octet-stream';
+  const isJunk = (p) => /(^|\/)(__MACOSX|\.DS_Store|Thumbs\.db)(\/|$)/.test(p) || /(^|\/)\._/.test(p);
+  const isHtml = (p) => /\.html?$/i.test(p);
+  function checkPath(p) {
+    if (p.includes('\\') || p.startsWith('/') || /^[a-z]:/i.test(p) || p.split('/').includes('..')) return 'Path berbahaya: ' + p;
+    if (BAD_EXT.test(p)) return 'Tipe file dilarang: ' + p;
+    if (!ALLOW.test(p)) return 'Tipe file tidak diizinkan: ' + p;
+    return null;
   }
-
-  // Preview sederhana: aset yang dirujuk src/href di index.html diganti blob URL lokal.
-  async function buildPreview(v, track) {
-    const dir = v.indexPath.includes('/') ? v.indexPath.slice(0, v.indexPath.lastIndexOf('/') + 1) : '';
-    let html = await v.zip.file(v.indexPath).async('string');
-    const re = /\b(src|href)=(["'])([^"'#?]+)/gi;
-    const paths = new Set();
-    for (const m of html.matchAll(re)) {
-      if (/^(https?:|data:|blob:|\/\/)/i.test(m[3])) continue;
-      const p = norm(dir + m[3]);
-      if (v.zip.file(p)) paths.add(p);
-    }
-    const map = {};
-    for (const p of paths) {
-      const ext = p.split('.').pop().toLowerCase();
-      const blob = await v.zip.file(p).async('blob');
-      const url = URL.createObjectURL(new Blob([blob], { type: MIME[ext] || 'application/octet-stream' }));
-      map[p] = url;
-      track.push(url);
-    }
-    html = html.replace(re, (m, a, q, path) => {
-      const p = norm(dir + path);
-      return map[p] ? `${a}=${q}${map[p]}` : m;
+  // Pilih entry: index.html dulu, lalu satu-satunya HTML, lalu yang paling dangkal.
+  function defaultEntry(paths) {
+    const htmls = paths.filter(isHtml).sort((a, b) => a.split('/').length - b.split('/').length);
+    const idx = htmls.find((p) => /(^|\/)index\.html?$/i.test(p));
+    return idx || (htmls.length === 1 ? htmls[0] : (htmls[0] || ''));
+  }
+  // Gabungkan HTML utama dengan CSS, JS, dan aset yang dirujuk (agar bisa dijalankan dalam satu iframe).
+  function inlineHtml(entryPath, files) {
+    const dir = entryPath.includes('/') ? entryPath.slice(0, entryPath.lastIndexOf('/') + 1) : '';
+    const get = (ref) => {
+      if (!ref || /^(https?:|data:|blob:|\/\/|#|mailto:)/i.test(ref)) return null;
+      const clean = ref.split('#')[0].split('?')[0];
+      return files.get(norm(dir + clean)) || null;
+    };
+    const esc2 = (s) => s.replace(/<\/script/gi, '<\\/script');
+    let html = files.get(entryPath).content;
+    html = html.replace(/<script\b([^>]*?)\bsrc=["']([^"']+)["']([^>]*)>\s*<\/script>/gi, (m, a, src, b) => {
+      const f = get(src);
+      if (!f || !f.text) return m;
+      return '<script' + a + b + '>' + esc2(f.content) + '</script>';
+    });
+    html = html.replace(/<link\b[^>]*?href=["']([^"']+)["'][^>]*>/gi, (m, href) => {
+      const f = get(href);
+      if (!f || !/\.css$/i.test(f.path)) return m;
+      return '<style>' + f.content + '</style>';
+    });
+    html = html.replace(/\b(src|href|poster)=(["'])([^"']+)\2/gi, (m, attr, q, ref) => {
+      const f = get(ref);
+      if (!f) return m;
+      const url = f.text ? 'data:' + f.mime + ';charset=utf-8,' + encodeURIComponent(f.content) : f.content;
+      return attr + '=' + q + url + q;
     });
     return html;
+  }
+  // INLINE-END
+
+  const readDataUrl = (f) => new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = () => rej(new Error('Gagal membaca ' + f.name));
+    r.readAsDataURL(f);
+  });
+  async function makeEntry(path, content, size) {
+    return { path, mime: mimeOf(path), text: TEXT_EXT.test(path), content, size };
+  }
+  // Dari beberapa File (atau folder). Mengembalikan { errors, entries }.
+  async function readFiles(list) {
+    const errors = [], entries = [];
+    for (const f of list) {
+      const rel = f.webkitRelativePath || f.name;
+      if (isJunk(rel)) continue;
+      if (/\.zip$/i.test(f.name)) { errors.push('ZIP tidak bisa digabung dengan file lain. Upload ZIP sendiri.'); continue; }
+      const bad = checkPath(rel);
+      if (bad) { errors.push(bad); continue; }
+      const text = TEXT_EXT.test(rel);
+      const content = text ? await f.text() : await readDataUrl(f);
+      if (content.length > MAX_FILE) { errors.push(`${rel} terlalu besar (maks 900 KB per file).`); continue; }
+      entries.push(await makeEntry(rel, content, content.length));
+      if (entries.length > MAX_FILES) { errors.push('Jumlah file melebihi 500.'); break; }
+    }
+    return { errors, entries };
+  }
+  // Dari satu ZIP.
+  async function readZip(file) {
+    const errors = [], entries = [];
+    if (file.size > MAX_ZIP) return { errors: [`ZIP melebihi 50 MB (${(file.size / 1048576).toFixed(1)} MB).`], entries };
+    const magic = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+    if (!(magic[0] === 0x50 && magic[1] === 0x4b)) return { errors: ['Isi file bukan arsip ZIP yang valid.'], entries };
+    if (!window.JSZip) return { errors: ['Library JSZip gagal dimuat. Periksa koneksi internet.'], entries };
+    let zip;
+    try { zip = await JSZip.loadAsync(file); }
+    catch (e) { return { errors: ['ZIP rusak atau tidak bisa dibaca.'], entries }; }
+    for (const [name, z] of Object.entries(zip.files)) {
+      if (z.dir || isJunk(name)) continue;
+      const bad = checkPath(name);
+      if (bad) { errors.push(bad); continue; }
+      const text = TEXT_EXT.test(name);
+      const content = text ? await z.async('string') : 'data:' + mimeOf(name) + ';base64,' + (await z.async('base64'));
+      if (content.length > MAX_FILE) { errors.push(`${name} terlalu besar (maks 900 KB per file).`); continue; }
+      entries.push(await makeEntry(name, content, content.length));
+      if (entries.length > MAX_FILES) { errors.push('Jumlah file melebihi 500.'); break; }
+    }
+    return { errors, entries };
   }
 
   views.uploader = {
     async render(root) {
       const [cats, media] = await Promise.all([HG.list('categories'), HG.list('media')]);
-      let urls = [];
-      const revoke = () => { urls.forEach((u) => URL.revokeObjectURL(u)); urls = []; };
-      root.innerHTML = page('Upload Games', 'Upload game HTML5 dalam format ZIP. File divalidasi sebelum bisa disimpan.') + `
+      const ACCEPT = '.zip,.html,.htm,.css,.js,.mjs,.json,.txt,.svg,.png,.jpg,.jpeg,.gif,.webp,.ico,.mp3,.ogg,.wav,.m4a,.woff,.woff2,.ttf,.otf,.mp4,.webm';
+      const st = { entries: [], entry: '', source: null };
+      const total = () => st.entries.reduce((a, e) => a + e.size, 0);
+      const fmtKB = (n) => (n >= 1048576 ? (n / 1048576).toFixed(2) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
+      const iconFor = (e) => (e.text && /html/.test(e.mime) ? 'file-code' : e.text ? 'file-text' : e.mime.startsWith('image/') ? 'image' : e.mime.startsWith('audio/') ? 'music' : e.mime.startsWith('video/') ? 'film' : 'file');
+
+      root.innerHTML = page('Upload Games', 'Upload game HTML5: satu ZIP, beberapa file sekaligus (HTML, CSS, JS, gambar, audio, font), atau satu folder.') + `
         <div class="card drop" id="drop">
           <i data-lucide="upload-cloud"></i>
-          <h3>Seret file ZIP ke sini</h3>
-          <p class="muted small">atau pilih dari perangkat</p>
-          <label class="btn btn-primary"><input type="file" id="zipIn" accept=".zip,application/zip" hidden>Pilih file ZIP</label>
-          <small class="muted">Maks 50 MB · maks 500 file · wajib ada index.html · tanpa skrip server (.php, .exe, .sh, …)</small>
-        </div>
-        <div id="uploadResult"></div>`;
-
-      const handle = async (file) => {
-        const out = $('#uploadResult', root);
-        revoke();
-        out.innerHTML = '<div class="card pad"><div class="sk" style="height:56px"></div><p class="muted small" style="margin-top:10px">Memvalidasi arsip…</p></div>';
-        const v = await validateZip(file);
-        if (v.errors.length) {
-          out.innerHTML = `<div class="card pad"><h2>Validasi gagal</h2><p class="muted small" style="margin:6px 0 10px">Perbaiki masalah berikut lalu upload ulang.</p><ul class="issues err">${v.errors.map((e) => `<li>${esc(e)}</li>`).join('')}</ul></div>`;
-          return;
-        }
-        let html = '';
-        try { html = await buildPreview(v, urls); }
-        catch (e) { html = '<p>Preview gagal dibuat.</p>'; }
-        const archive = { name: file.name, size: file.size, files: v.count, indexPath: v.indexPath };
-        out.innerHTML = `<div class="uploader-grid">
-          <div class="card"><div class="card-head"><h2>Preview lokal</h2>${demoChip}</div>
-            <iframe class="preview-frame" title="Preview game" sandbox="allow-scripts" style="height:460px"></iframe>
-            <p class="muted small" style="margin-top:8px">Preview sederhana di browser. Game yang memuat asset secara dinamis mungkin tidak tampil penuh sebelum diekstrak di server.</p>
+          <h3>Seret file ke sini</h3>
+          <p class="muted small">Bisa ZIP, atau beberapa file sekaligus</p>
+          <div class="page-actions" style="justify-content:center">
+            <label class="btn btn-primary"><input type="file" id="fileIn" multiple accept="${ACCEPT}" hidden>Pilih file</label>
+            <label class="btn btn-ghost"><input type="file" id="dirIn" webkitdirectory hidden>Pilih folder</label>
           </div>
+          <small class="muted">ZIP maks 50 MB · tiap file maks 900 KB · total maks 20 MB · tanpa skrip server</small>
+        </div>
+        <div id="stage"></div>`;
+
+      const stage = () => $('#stage', root);
+      const build = () => {
+        stage().innerHTML = `<div class="uploader-grid">
+          <div class="card"><div class="card-head"><h2>Preview</h2>${demoChip.replace('DEMO', 'PREVIEW')}</div><div id="pvWrap"></div>
+            <p class="muted small" style="margin-top:8px">Preview menggabungkan HTML, CSS, dan JS dari file yang diupload. Aset yang dimuat lewat JavaScript mungkin tidak tampil di preview.</p></div>
           <div class="card">
-            <div class="card-head"><h2>Hasil validasi</h2>${badge('Valid', 'ok')}</div>
-            <div class="kv"><span>File</span><b>${esc(archive.name)}</b><span>Ukuran</span><b>${(file.size / 1048576).toFixed(2)} MB</b><span>Jumlah file</span><b>${v.count}</b><span>Entry utama</span><b>${esc(v.indexPath)}</b></div>
-            ${v.warnings.length ? `<ul class="issues warn" style="margin-top:12px">${v.warnings.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}
+            <div class="card-head"><h2>File game</h2><span class="muted small" id="sumTxt"></span></div>
+            <label>Halaman utama (entry)<select id="entrySel"></select></label>
+            <div class="flist" id="flist" style="margin-top:8px"></div>
+            <div id="issues"></div>
             <div class="card-head" style="margin-top:14px"><h2>Metadata game</h2></div>
             <form id="upForm">${gameFieldsHtml({ status: 'draft', order: 0 }, cats, media)}</form>
-            <p class="muted small" id="pubHint" style="margin-top:10px">Publish membutuhkan Game URL yang sudah bisa diakses publik. Ekstraksi otomatis ke server memerlukan Cloud Functions (lihat admin/firebase/README.md).</p>
             <div class="page-actions" style="margin-top:12px;justify-content:flex-end">
               <button class="btn btn-ghost" id="upDraft" type="button"><i data-lucide="save"></i>Save Draft</button>
               <button class="btn btn-primary" id="upPub" type="button"><i data-lucide="rocket"></i>Publish game</button>
-            </div>
-          </div></div>`;
-        out.querySelector('iframe').srcdoc = html;
-        const form = out.querySelector('#upForm');
-        out.querySelector('[data-thumb]').onchange = (e) => { if (e.target.value) form.elements.thumbnail.value = e.target.value; };
-        const save = (status, btn) => run(btn, async () => {
-          const data = collectGame(form); data.status = status;
-          if (!data.title) data.title = file.name.replace(/\.zip$/i, '');
-          await saveGameData(data, null, { archive });
-          toast(status === 'published' ? 'Game dipublish.' : 'Game disimpan sebagai draft.');
-          revoke();
-          location.hash = '#/games';
-          return true;
-        });
-        out.querySelector('#upDraft').onclick = (e) => save('draft', e.currentTarget);
-        out.querySelector('#upPub').onclick = (e) => {
-          if (!form.elements.gameUrl.value.trim()) { toast('Publish butuh Game URL. Simpan sebagai draft dulu.', 'error'); return; }
-          if (!can('games.publish')) { toast('Akunmu tidak punya izin publish.', 'error'); return; }
-          save('published', e.currentTarget);
+            </div></div></div>`;
+        $('[data-thumb]', root).onchange = (e) => { if (e.target.value) $('#upForm', root).elements.thumbnail.value = e.target.value; };
+        $('#entrySel', root).onchange = (e) => { st.entry = e.target.value; drawPreview(); };
+        $('#flist', root).onclick = (e) => {
+          const b = e.target.closest('button[data-rm]'); if (!b) return;
+          const removed = st.entries.splice(+b.dataset.rm, 1)[0];
+          if (removed && removed.path === st.entry) st.entry = '';
+          drawFiles();
         };
+        $('#upDraft', root).onclick = (e) => save('draft', e.currentTarget);
+        $('#upPub', root).onclick = (e) => save('published', e.currentTarget);
+      };
+      const drawFiles = () => {
+        if (!st.entries.length) { stage().innerHTML = ''; return; }
+        if (!$('#upForm', root)) build();
+        const paths = st.entries.map((e) => e.path);
+        if (!st.entry || !paths.includes(st.entry)) st.entry = defaultEntry(paths);
+        const htmls = paths.filter(isHtml);
+        $('#entrySel', root).innerHTML = htmls.length
+          ? htmls.map((p) => `<option value="${esc(p)}" ${p === st.entry ? 'selected' : ''}>${esc(p)}</option>`).join('')
+          : '<option value="">Tidak ada file HTML</option>';
+        $('#flist', root).innerHTML = st.entries.map((e, i) => `<div class="list-row">
+            <i data-lucide="${iconFor(e)}"></i>
+            <div class="grow"><b>${esc(e.path)}</b><small>${esc(e.mime)} · ${fmtKB(e.size)}</small></div>
+            <button class="btn-icon danger" data-rm="${i}" type="button" aria-label="Hapus file"><i data-lucide="x"></i></button></div>`).join('');
+        $('#sumTxt', root).textContent = `${st.entries.length} file · ${fmtKB(total())}`;
+        const issues = [];
+        if (!st.entry) issues.push('Pilih halaman utama (file .html) dulu.');
+        if (total() > MAX_TOTAL) issues.push('Total ukuran melebihi 20 MB. Hapus file yang tidak perlu.');
+        $('#issues', root).innerHTML = issues.length ? `<ul class="issues warn" style="margin-top:10px">${issues.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>` : '';
+        drawPreview();
         icons();
       };
+      const drawPreview = () => {
+        const wrap = $('#pvWrap', root);
+        if (!st.entry) { wrap.innerHTML = '<p class="muted">Pilih halaman utama untuk melihat preview.</p>'; return; }
+        const files = new Map(st.entries.map((e) => [e.path, e]));
+        wrap.innerHTML = '<iframe class="preview-frame" title="Preview game" sandbox="allow-scripts" style="height:440px"></iframe>';
+        wrap.querySelector('iframe').srcdoc = inlineHtml(st.entry, files);
+      };
+      const addEntries = (incoming, replace) => {
+        const map = new Map(replace ? [] : st.entries.map((e) => [e.path, e]));
+        for (const e of incoming) map.set(e.path, e);
+        st.entries = [...map.values()];
+      };
+      const ingest = async (list, isZip) => {
+        stage().innerHTML = '<div class="card pad"><div class="sk" style="height:56px"></div><p class="muted small" style="margin-top:10px">Membaca file…</p></div>';
+        try {
+          const r = isZip ? await readZip(list[0]) : await readFiles(list);
+          if (r.errors.length) {
+            stage().innerHTML = `<div class="card pad"><h2>Validasi gagal</h2><p class="muted small" style="margin:6px 0 10px">Perbaiki atau hapus file berikut lalu upload ulang.</p><ul class="issues err">${r.errors.slice(0, 20).map((e) => `<li>${esc(e)}</li>`).join('')}</ul></div>`;
+            if (!st.entries.length) return;
+            return drawFiles();
+          }
+          if (!r.entries.length) { stage().innerHTML = ''; return toast('Tidak ada file yang bisa dibaca.', 'error'); }
+          addEntries(r.entries, isZip);
+          st.source = isZip ? { kind: 'zip', name: list[0].name } : { kind: 'files', name: list.length + ' file' };
+          st.entry = isZip ? '' : st.entry;
+          drawFiles();
+        } catch (e) {
+          stage().innerHTML = `<div class="card pad"><h2>Gagal membaca file</h2><p class="muted small">${esc(e.message)}</p></div>`;
+        }
+      };
+      const onPick = (input) => {
+        const list = [...input.files];
+        input.value = '';
+        if (!list.length) return;
+        const isZip = list.length === 1 && /\.zip$/i.test(list[0].name);
+        if (!isZip && list.some((f) => /\.zip$/i.test(f.name))) { toast('ZIP harus diupload sendiri.', 'error'); return; }
+        ingest(list, isZip);
+      };
+      const save = (status, btn) => run(btn, async () => {
+        if (!st.entry) throw new Error('Pilih halaman utama (file HTML) dulu.');
+        if (total() > MAX_TOTAL) throw new Error('Total ukuran melebihi 20 MB.');
+        const data = collectGame($('#upForm', root));
+        data.status = status;
+        if (!data.title) data.title = st.source && st.source.kind === 'zip' ? st.source.name.replace(/\.zip$/i, '') : 'Game baru';
+        const rec = await saveGameData(data, null, {
+          entry: st.entry, fileCount: st.entries.length, bytes: total(),
+          archive: st.source ? { kind: st.source.kind, name: st.source.name } : null
+        });
+        try { await HG.saveGameFiles(rec.id, st.entries); }
+        catch (e) { await HG.remove('games', rec.id).catch(() => {}); throw new Error('File game gagal disimpan: ' + e.message); }
+        toast(status === 'published' ? 'Game dipublish.' : 'Game disimpan sebagai draft.');
+        location.hash = '#/games';
+        return true;
+      });
 
-      const input = $('#zipIn', root), drop = $('#drop', root);
-      input.onchange = () => input.files[0] && handle(input.files[0]);
+      const fileIn = $('#fileIn', root), dirIn = $('#dirIn', root), drop = $('#drop', root);
+      fileIn.onchange = () => onPick(fileIn);
+      dirIn.onchange = () => onPick(dirIn);
       drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('hot'); });
       drop.addEventListener('dragleave', () => drop.classList.remove('hot'));
-      drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('hot'); if (e.dataTransfer.files[0]) handle(e.dataTransfer.files[0]); });
+      drop.addEventListener('drop', (e) => {
+        e.preventDefault(); drop.classList.remove('hot');
+        const list = [...e.dataTransfer.files];
+        if (!list.length) return;
+        const isZip = list.length === 1 && /\.zip$/i.test(list[0].name);
+        ingest(list, isZip);
+      });
     }
   };
 
