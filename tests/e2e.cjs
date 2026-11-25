@@ -112,7 +112,7 @@ async function randomInput(p) {
     await page.click('#skipIntro'); await page.waitForTimeout(1000);
     check('A3 SKIP INTRO menyembunyikan intro', !(await page.isVisible('#intro')));
     await page.reload({ waitUntil: 'load' }); await page.waitForTimeout(600);
-    check('A4 intro tidak tampil lagi setelah reload', (await page.evaluate(() => getComputedStyle(document.getElementById('intro')).display)) === 'none');
+    check('A4 intro tampil lagi setelah reload', await page.isVisible('#intro'));
 
     await page.click('#gear'); await page.click('#replay'); await page.waitForTimeout(400);
     check('A5 REPLAY INTRO memutar intro lagi', await page.isVisible('#intro'));

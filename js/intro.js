@@ -1,4 +1,5 @@
-// js/intro.js — EPIC 3D UNIVERSE CINEMATIC (Three.js, semua procedural, ±7,6 detik).
+// js/intro.js — EPIC 3D UNIVERSE CINEMATIC (Three.js, semua procedural, 8 detik).
+// Timeline: 0–2 s masuk galaksi · 2–4 s planet & nebula · 4–6 s logo 3D energi · 6–8 s zoom-out ke homepage.
 // Bintang warp → galaksi spiral → nebula → black hole (lensing) → planet → logo 3D metalik → zoom-out → homepage.
 // Pipeline: bloom + pass kustom (gravitational lensing, chromatic aberration kecepatan, vignette).
 // Android: kualitas dikurangi otomatis (jumlah partikel, pixel ratio, bloom) dan turun lagi bila FPS rendah.
@@ -6,8 +7,8 @@ import * as THREE from 'three';
 import { logoTexture } from './three-scene.js';
 
 const FONT_URL = 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/fonts/helvetiker_bold.typeface.json';
-const DUR = 7.6, TP = 5.4; // durasi total, durasi kamera menyusuri jalur
-const CAPS = [[.6, 2.1, 'PLAYER 1 READY'], [2.4, 3.7, 'LEVEL 01 · THE UNIVERSE'], [3.9, 5.2, 'FIND THE LEGEND'], [5.9, 7.6, 'PRESS START<small>PLAY · EXPLORE · DOMINATE</small>', 1]];
+const DUR = 8, TP = 5.6; // durasi total, durasi kamera menyusuri jalur
+const CAPS = [[.3, 1.9, 'PLAYER 1 READY'], [2.1, 3.9, 'LEVEL 01 · THE UNIVERSE'], [4.1, 5.9, 'FIND THE LEGEND'], [6.1, 8, 'PRESS START<small>PLAY · EXPLORE · DOMINATE</small>', 1]];
 const ICONS = ['🎮', '🕹️', '👾', '🪙', '🏆', '⚔️', '🎲', '👻', '🏎️', '🚀', '⚽', '🧟'];
 function emojiTex(e) {
   const c = document.createElement('canvas'); c.width = c.height = 128;
@@ -148,7 +149,7 @@ export function runIntro(canvas, onDone) {
   root.style.transition = 'none'; root.style.opacity = ''; root.style.transform = ''; // fade-out diatur lewat JS
   const hud = { score: root.querySelector('#inScore'), lv: root.querySelector('#inLv'), prog: root.querySelector('#inProg') };
   const calm = document.body.classList.contains('reduce'); // mode "kurangi animasi": tetap main, tanpa guncangan/kilatan/FOV kick
-  let stopped = false, raf = 0, timer = 0, cleanup = () => {};
+  let stopped = false, cleaned = false, raf = 0, timer = 0, cleanup = () => {};
   const stop = () => { stopped = true; cancelAnimationFrame(raf); clearTimeout(timer); cleanup(); root.style.transition = ''; };
   const fallback = err => {
     cap.className = 'in-cap'; cap.textContent = ''; root.classList.add('fb');
@@ -162,18 +163,22 @@ export function runIntro(canvas, onDone) {
     cap.textContent = 'LOADING UNIVERSE'; cap.classList.add('ld');
     const mobile = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) || Math.min(innerWidth, innerHeight) < 600 || (navigator.hardwareConcurrency || 8) <= 4;
     const q = !mobile;
+    // LoadingManager: setiap aset (modul addon, font, environment) dihitung; progres tampil di caption
+    const manager = new THREE.LoadingManager();
+    manager.onProgress = (_, n, tot) => { if (!stopped) cap.textContent = `LOADING UNIVERSE ${Math.round(n / tot * 100)}%`; };
+    const track = p => { manager.itemStart('aset'); return p.finally(() => manager.itemEnd('aset')); };
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
     renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1;
     const imp = p => import('three/addons/' + p).catch(() => null);
-    const [EC, RP, BP, SP, OP, RE, FL, TG, RB] = await Promise.all(['postprocessing/EffectComposer.js', 'postprocessing/RenderPass.js', 'postprocessing/UnrealBloomPass.js', 'postprocessing/ShaderPass.js', 'postprocessing/OutputPass.js', 'environments/RoomEnvironment.js', 'loaders/FontLoader.js', 'geometries/TextGeometry.js', 'geometries/RoundedBoxGeometry.js'].map(imp));
+    const [EC, RP, BP, SP, OP, RE, FL, TG, RB] = await Promise.all(['postprocessing/EffectComposer.js', 'postprocessing/RenderPass.js', 'postprocessing/UnrealBloomPass.js', 'postprocessing/ShaderPass.js', 'postprocessing/OutputPass.js', 'environments/RoomEnvironment.js', 'loaders/FontLoader.js', 'geometries/TextGeometry.js', 'geometries/RoundedBoxGeometry.js'].map(p => track(imp(p))));
     let font = null;
     if (FL && TG) {
       try {
-        const j = await Promise.race([fetch(FONT_URL).then(r => r.json()), new Promise((_, no) => setTimeout(no, 6000))]);
+        const j = await track(Promise.race([fetch(FONT_URL).then(r => r.json()), new Promise((_, no) => setTimeout(no, 6000))]));
         font = new FL.FontLoader().parse(j);
       } catch { /* pakai logo datar */ }
     }
-    if (stopped) { renderer.dispose(); return; }
+    if (stopped) { renderer.dispose(); renderer.forceContextLoss(); return; }
 
     let W = innerWidth, H = innerHeight, pr = q ? Math.min(devicePixelRatio || 1, 1.75) : 1;
     const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(50, W / H, 1, 8000);
@@ -231,7 +236,7 @@ export function runIntro(canvas, onDone) {
     if (font) {
       const geo = new TG.TextGeometry('HEYGAMMER', { font, size: 10, height: 3.4, depth: 3.4, curveSegments: 6, bevelEnabled: true, bevelThickness: .35, bevelSize: .28, bevelSegments: 3 });
       geo.center(); geo.computeBoundingBox(); logoW = geo.boundingBox.max.x - geo.boundingBox.min.x;
-      logoG.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xd6c7ff, metalness: 1, roughness: .18, envMapIntensity: 1.6, emissive: 0x3b1d8f, emissiveIntensity: .5 })));
+      logoG.add(new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ color: 0xd6c7ff, metalness: 1, roughness: .16, clearcoat: 1, clearcoatRoughness: .08, iridescence: .55, iridescenceIOR: 1.35, envMapIntensity: 1.8, emissive: 0x3b1d8f, emissiveIntensity: .5 })));
       const halo = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x7c3aed, side: THREE.BackSide, transparent: true, opacity: .55, blending: ADD, depthWrite: false })); halo.scale.setScalar(1.035); logoG.add(halo);
     } else {
       logoW = 72;
@@ -299,9 +304,10 @@ export function runIntro(canvas, onDone) {
     resize();
 
     cleanup = () => {
+      if (cleaned) return; cleaned = true;
       removeEventListener('resize', onResize); removeEventListener('pointermove', onMove);
       scene.traverse(o => { if (o.geometry) o.geometry.dispose(); const m = o.material; if (m) (Array.isArray(m) ? m : [m]).forEach(x => { x.dispose(); }); });
-      tex.forEach(t => t.dispose()); if (pm) pm.dispose(); if (composer) composer.dispose(); ast.dispose(); renderer.dispose();
+      tex.forEach(t => t.dispose()); if (pm) pm.dispose(); if (composer) composer.dispose(); ast.dispose(); renderer.dispose(); renderer.forceContextLoss();
     };
 
     // pemanasan: kompilasi semua shader (termasuk logo) sebelum timeline mulai, supaya tidak patah saat logo muncul
@@ -317,7 +323,7 @@ export function runIntro(canvas, onDone) {
       try {
         if (!t0) { t0 = now; last = now; }
         const t = (now - t0) / 1000, dt = clamp((now - last) / 1000, 0, .05); last = now; ema = ema * .9 + dt * .1;
-        const x = clamp(t / TP), u = smooth(x), sp = calm ? 0 : 4 * x * (1 - x), dv = smooth((t - 5.6) / 2);
+        const x = clamp(t / TP), u = smooth(x), sp = calm ? 0 : 4 * x * (1 - x), dv = smooth((t - 6) / 2); // zoom-out 6–8 s
         CAM.getPoint(u, P); LOOK.getPoint(u, Q);
         px += (tx - px) * .05; py += (ty - py) * .05;
         camera.position.set(P.x + px * 7 + rnd(-1, 1) * sp * .2, P.y - py * 4 + rnd(-1, 1) * sp * .2 + dv * 14, P.z + dv * 120);
@@ -338,14 +344,14 @@ export function runIntro(canvas, onDone) {
         ast.instanceMatrix.needsUpdate = true;
 
         // logo muncul di t≈4.5 dengan ledakan cahaya + gelombang kejut + sapuan lampu
-        const lr = t - 4.5;
+        const lr = t - 4;
         logoG.visible = lr > 0;
         if (lr > 0) {
           logoG.scale.setScalar(Math.max(.001, logoG.userData.fit * outBack(lr / .9)));
           logoG.rotation.y = (1 - smooth(lr / 1.6)) * -.9 + Math.sin(t * .7) * .05;
           logoG.position.y = Math.sin(t * 1.3) * .6;
-          const sw = smooth((t - 5) / 1.4); ls.position.x = -90 + 180 * sw; ls.intensity = 9000 * Math.sin(Math.PI * sw);
-          const wp = clamp((t - 4.8) / 1.2); wave.scale.setScalar(8 + 260 * smooth(wp)); wave.material.opacity = .9 * (1 - wp) * (wp > 0 ? 1 : 0);
+          const sw = smooth((t - 4.6) / 1.4); ls.position.x = -90 + 180 * sw; ls.intensity = 9000 * Math.sin(Math.PI * sw);
+          const wp = clamp((t - 4.3) / 1.2); wave.scale.setScalar(8 + 260 * smooth(wp)); wave.material.opacity = .9 * (1 - wp) * (wp > 0 ? 1 : 0);
         }
 
         // props gaming melayang di sepanjang jalur
@@ -370,9 +376,9 @@ export function runIntro(canvas, onDone) {
           padBtn.forEach((m, i) => { m.emissiveIntensity = .6 + .5 * Math.sin(t * 5 + i * 1.6); });
         }
         // HUD arcade: skor, level, progress
-        const scr = Math.floor(smooth(t / 6.4) * 9999) * 10;
+        const scr = Math.floor(smooth(t / 7.2) * 9999) * 10;
         if (scr !== lastSc) { lastSc = scr; hud.score.textContent = String(scr).padStart(6, '0'); }
-        const lv = t < 2.4 ? 'LV 01' : t < 3.9 ? 'LV 02' : t < 5.2 ? 'LV 03' : 'LV MAX';
+        const lv = t < 2 ? 'LV 01' : t < 4 ? 'LV 02' : t < 6 ? 'LV 03' : 'LV MAX';
         if (lv !== hud.lv.textContent) hud.lv.textContent = lv;
         hud.prog.style.width = clamp(t / (DUR - .9)) * 100 + '%';
 
@@ -382,7 +388,7 @@ export function runIntro(canvas, onDone) {
         lensU.uC.value.set(tmp.x * .5 + .5, tmp.y * .5 + .5);
         lensU.uS.value = front ? .13 * clamp(1 - fwd.length() / 1100) : 0;
         lensU.uCA.value = calm ? .004 : .012 + .05 * sp;
-        if (bloom) bloom.strength = (q ? .85 : .7) + (calm ? .3 : 1.3) * Math.exp(-Math.max(0, t - 4.8) * 3.5) * (t > 4.8 ? 1 : 0);
+        if (bloom) bloom.strength = (q ? .85 : .7) + (calm ? .3 : 1.3) * Math.exp(-Math.max(0, t - 4.3) * 3.5) * (t > 4.3 ? 1 : 0);
 
         const c = CAPS.findIndex(([a, b]) => t >= a && t < b);
         if (c !== capI) { capI = c; cap.classList.remove('on', 'hold'); if (c >= 0) { cap.innerHTML = CAPS[c][2]; void cap.offsetWidth; cap.classList.add(CAPS[c][3] ? 'hold' : 'on'); } }

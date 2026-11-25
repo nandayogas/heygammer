@@ -295,9 +295,12 @@ function endIntro() {
 }
 function playIntro() {
   const el = $('#intro');
+  // canvas baru tiap diputar: context WebGL lama sudah dilepas, jadi replay tidak memakai ulang context yang rusak
+  const old = $('#introCanvas'), cv = old.cloneNode(false);
+  old.replaceWith(cv);
   el.style.display = 'block';
   el.classList.remove('hide');
-  stopIntro = runIntro($('#introCanvas'), endIntro);
+  stopIntro = runIntro(cv, endIntro);
 }
 
 /* ---------- event delegation ---------- */
